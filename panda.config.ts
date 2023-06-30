@@ -1,4 +1,6 @@
 import { defineConfig } from '@pandacss/dev'
+import { recipes } from './theme/recipes'
+import { semanticTokens, tokens } from './theme/tokens'
 
 export default defineConfig({
   // Whether to use css reset
@@ -12,7 +14,13 @@ export default defineConfig({
 
   // Useful for theme customization
   theme: {
-    extend: {},
+    extend: { tokens, semanticTokens, recipes },
+  },
+  globalCss: {
+    'html, body': {
+      color: 'text.main',
+      backgroundColor: 'bg.main',
+    },
   },
 
   // The output directory for your css system
