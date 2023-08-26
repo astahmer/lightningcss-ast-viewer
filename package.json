@@ -10,11 +10,25 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ark-ui/react": "^0.13.1",
+    "@codemirror/lang-css": "^6.2.1",
+    "@fontsource/inter": "^5.0.8",
+    "@park-ui/presets": "^0.8.1",
+    "@radix-ui/react-switch": "^1.0.3",
+    "@radix-ui/react-toast": "^1.1.4",
+    "@shadow-panda/style-context": "^0.4.0",
+    "@uiw/react-codemirror": "^4.21.10",
+    "jotai": "^2.4.0",
+    "lightningcss-wasm": "^1.21.7",
+    "lucide-react": "^0.269.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-icons": "^4.10.1",
+    "react-inspector": "^6.0.2"
   },
   "devDependencies": {
-    "@pandacss/dev": "^0.10.0",
+    "@pandacss/dev": "^0.12.2",
+    "@shadow-panda/preset": "^0.4.0",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.2.7",
     "@typescript-eslint/eslint-plugin": "^6.3.0",

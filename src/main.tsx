@@ -1,10 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
+import { Home } from './home'
 import './index.css'
+import './panda.css'
+import { Toaster } from './components/ui/toast/toaster'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <Toaster />
+    <Home />
   </React.StrictMode>,
 )

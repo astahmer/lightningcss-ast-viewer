@@ -1,5 +1,5 @@
-import { buttonRecipe } from './button.recipe'
+import { splitterRecipe } from './splitter.recipe'
 
 export const recipes = {
-  button: buttonRecipe,
+  splitter: splitterRecipe,
 }
