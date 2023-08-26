@@ -1,4 +1,4 @@
-import { Playground } from './Playground'
+import { Playground } from './lightning/playground'
 import { Layout } from './layout'
 
 export const Home = () => {

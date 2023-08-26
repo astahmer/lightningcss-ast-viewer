@@ -14,6 +14,7 @@ export function IconButton(props: IconButtonProps) {
       className={cx(
         className,
         css({
+          colorPalette: 'yellow',
           position: 'relative',
           display: 'flex',
           justifyContent: 'center',
@@ -25,10 +26,10 @@ export function IconButton(props: IconButtonProps) {
           bg: { base: 'gray.100', _dark: 'gray.700' },
           transition: 'colors',
           _hover: {
-            bg: 'orange.500',
+            bg: 'colorPalette.500',
             color: 'white',
             _dark: {
-              bg: 'orange.800',
+              bg: 'colorPalette.800',
             },
           },
         }),

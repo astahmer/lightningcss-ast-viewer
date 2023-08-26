@@ -1,32 +1,35 @@
 import { useEffect, useState } from 'react'
-import { css } from '../styled-system/css'
-import { Bleed, Flex } from '../styled-system/jsx'
+import { css } from '../../styled-system/css'
+import { Bleed, Flex } from '../../styled-system/jsx'
 import { css as cssLang } from '@codemirror/lang-css'
 import CodeMirror from '@uiw/react-codemirror'
 
 import { ObjectInspector } from 'react-inspector'
-import { button } from '../styled-system/recipes'
+import { button, splitter } from '../../styled-system/recipes'
 import {
   printNodeWithDetails,
   printNodeLoc,
   lightningTransform,
   LightningTransformResult,
   LightAstNode,
-} from './lightning/transform'
-import { useTheme } from './vite-themes/provider'
+} from './transform'
+import { useTheme } from '../vite-themes/provider'
 import { useAtomValue } from 'jotai'
-import { withDetailsAtom } from './lightning/atoms'
-import { Splitter, SplitterPanel, SplitterResizeTrigger } from './components/ui/splitter'
-import { useToast } from './components/ui/toast/use-toast'
+import { withDetailsAtom } from './atoms'
+import { Splitter, SplitterPanel, SplitterResizeTrigger } from '../components/ui/splitter'
+import { useToast } from '../components/ui/toast/use-toast'
+import { UrlSaver } from './url-saver'
+import { BottomTabs } from '../bottom-tabs'
 
 const defaultResult: LightningTransformResult = { astNodes: new Set(), flatNodes: new Set(), css: '' }
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
-// TODO cmd+s = save + button pour share
-// TODO play.panda buttons en bas pour voir output + custom visitors
+// TODO voir output + custom visitors
+
+const urlSaver = new UrlSaver()
 
 export function Playground() {
-  const [input, setInput] = useState(sample.mediaQueries)
+  const [input, setInput] = useState(urlSaver.getValue('input') || sample.mediaQueries)
   const [output, setOutput] = useState(defaultResult)
   const [selected, setSelected] = useState<LightAstNode | undefined>()
 
@@ -37,6 +40,7 @@ export function Playground() {
       const result = lightningTransform(input)
       setOutput(result)
       console.log(result)
+      urlSaver.setValue('input', input)
     } catch (err) {
       console.error(err)
       toast({
@@ -47,7 +51,8 @@ export function Playground() {
   }
 
   useEffect(() => {
-    update(sample.mediaQueries)
+    update(input)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const theme = useTheme()
@@ -65,29 +70,43 @@ export function Playground() {
       ]}
     >
       <SplitterPanel id="a">
-        <Flex direction="column" w="100%" h="100%" overflow="auto">
-          <CodeMirror
-            width="100%"
-            height="100%"
-            className={css({ flex: 1, minHeight: '0' })}
-            theme={theme.resolvedTheme === 'dark' ? 'dark' : 'light'}
-            value={input}
-            onChange={(value) => {
-              setInput(value)
-              return update(value ?? '')
-            }}
-            extensions={[cssLang()]}
-          />
-          <button
-            className={button({})}
-            onClick={() => {
-              setInput(sample.mediaQueries)
-              return update(sample.mediaQueries)
-            }}
-          >
-            reset to sample
-          </button>
-        </Flex>
+        <Splitter
+          size={[
+            { id: 'editor', size: 50, minSize: 5 },
+            { id: 'artifacts', size: 50 },
+          ]}
+          orientation="vertical"
+          className={splitter().root}
+        >
+          <SplitterPanel id="editor">
+            <Flex direction="column" w="100%" h="100%" overflow="auto">
+              <CodeMirror
+                width="100%"
+                height="100%"
+                className={css({ flex: 1, minHeight: '0' })}
+                theme={theme.resolvedTheme === 'dark' ? 'dark' : 'light'}
+                value={input}
+                onChange={(value) => {
+                  setInput(value)
+                  return update(value ?? '')
+                }}
+                extensions={[cssLang()]}
+              />
+
+              <button
+                className={button({})}
+                onClick={() => {
+                  setInput(sample.mediaQueries)
+                  return update(sample.mediaQueries)
+                }}
+              >
+                reset to sample
+              </button>
+            </Flex>
+          </SplitterPanel>
+
+          <BottomTabs input={input} />
+        </Splitter>
       </SplitterPanel>
       <SplitterResizeTrigger id="a:b" />
       <SplitterPanel id="b" py="2" px="5">

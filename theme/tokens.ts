@@ -11,7 +11,7 @@ export const tokens = defineTokens({
 export const semanticTokens = defineSemanticTokens({
   colors: {
     'text.main': {
-      value: { base: '{colors.whiteish}', _dark: '{colors.blackish}' },
+      value: { base: '{colors.yellow.300}', _dark: '{colors.blackish}' },
     },
     'bg.main': {
       value: { base: '{colors.blackish}', _dark: '{colors.whiteish}' },
