@@ -1,7 +1,7 @@
 import * as esbuild from 'esbuild-wasm'
 
 await esbuild.initialize({
-  wasmURL: './node_modules/esbuild-wasm/esbuild.wasm',
+  wasmURL: import.meta.env.PROD ? 'esbuild.wasm' : './node_modules/esbuild-wasm/esbuild.wasm',
 })
 
 export const esbuildTransform = async (code: string) => {

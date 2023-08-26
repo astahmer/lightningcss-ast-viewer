@@ -39,7 +39,6 @@ export const Layout = ({ children }: PropsWithChildren) => {
           {children}
         </Stack>
       </Flex>
-      {/* {TwitterIcon} */}
     </ThemeProvider>
   )
 }

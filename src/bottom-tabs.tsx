@@ -161,12 +161,11 @@ const visitorSample =
   `function main () {
   const rules = []
   return {
-    MediaQuery (mq) {
-      console.log(mq)
-    },
-    Rule(rule) {
-      rules.push(rule)
-      console.log(rule.type)
+    Color(color) {
+      if (color.type === 'rgb') {
+        color.g = 0;
+        return color;
+      }
     }
   }
 }`
