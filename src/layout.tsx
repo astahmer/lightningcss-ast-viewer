@@ -3,6 +3,7 @@ import { ColorModeSwitch } from './components/color-mode-switch'
 import { IconButton } from './components/icon-button'
 import { ThemeProvider } from './vite-themes/provider'
 import { GithubIcon } from './components/github-icon'
+import { TwitterIcon } from './components/twitter-icon'
 
 import type { PropsWithChildren } from 'react'
 
@@ -19,9 +20,14 @@ export const Layout = ({ children }: PropsWithChildren) => {
               Lightning CSS AST Viewer
             </styled.h1>
             <HStack alignItems="center" ml="auto">
-              <styled.a target="blank" href="https://github.com/astahmer/lightningcss-ast-viewver">
+              <styled.a target="blank" href="https://github.com/astahmer/lightning-ast-viewer">
                 <IconButton title="Github" css={{ color: { base: 'colorPalette.500', _dark: 'colorPalette.200' } }}>
                   <GithubIcon />
+                </IconButton>
+              </styled.a>
+              <styled.a target="blank" href="https://twitter.com/astahmer_dev">
+                <IconButton title="Twitter" css={{ color: { base: 'colorPalette.500', _dark: 'colorPalette.200' } }}>
+                  <TwitterIcon />
                 </IconButton>
               </styled.a>
               <styled.a target="blank" href="https://lightningcss.dev/">
@@ -33,6 +39,7 @@ export const Layout = ({ children }: PropsWithChildren) => {
           {children}
         </Stack>
       </Flex>
+      {/* {TwitterIcon} */}
     </ThemeProvider>
   )
 }
