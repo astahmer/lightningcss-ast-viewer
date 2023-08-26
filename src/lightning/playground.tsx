@@ -1,43 +1,47 @@
+import { css as cssLang } from '@codemirror/lang-css'
+import CodeMirror from '@uiw/react-codemirror'
 import { useEffect, useState } from 'react'
 import { css } from '../../styled-system/css'
 import { Bleed, Flex } from '../../styled-system/jsx'
-import { css as cssLang } from '@codemirror/lang-css'
-import CodeMirror from '@uiw/react-codemirror'
 
+import { useAtomValue } from 'jotai'
 import { ObjectInspector } from 'react-inspector'
 import { button, splitter } from '../../styled-system/recipes'
-import {
-  printNodeWithDetails,
-  printNodeLoc,
-  lightningTransform,
-  LightningTransformResult,
-  LightAstNode,
-} from './transform'
-import { useTheme } from '../vite-themes/provider'
-import { useAtomValue } from 'jotai'
-import { withDetailsAtom } from './atoms'
+import { BottomTabs, OutputEditor } from '../bottom-tabs'
 import { Splitter, SplitterPanel, SplitterResizeTrigger } from '../components/ui/splitter'
 import { useToast } from '../components/ui/toast/use-toast'
-import { UrlSaver } from './url-saver'
-import { BottomTabs } from '../bottom-tabs'
+import { useTheme } from '../vite-themes/provider'
+import { LightningContextProvider } from './context'
+import {
+  LightAstNode,
+  LightVisitors,
+  LightningTransformResult,
+  lightningTransform,
+  printNodeLoc,
+  printNodeWithDetails,
+} from './light-transform'
+import { activeActionTabAtom, withDetailsAtom } from './store'
+import { urlSaver } from './url-saver'
+
+import { useSetAtom } from 'jotai'
+import { flex } from '../../styled-system/patterns'
+import { SystemStyleObject } from '../../styled-system/types'
+import { Switch } from '../components/ui/switch'
 
 const defaultResult: LightningTransformResult = { astNodes: new Set(), flatNodes: new Set(), css: '' }
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
-// TODO voir output + custom visitors
-
-const urlSaver = new UrlSaver()
-
 export function Playground() {
-  const [input, setInput] = useState(urlSaver.getValue('input') || sample.mediaQueries)
+  const [input, setInput] = useState(initialInput)
   const [output, setOutput] = useState(defaultResult)
   const [selected, setSelected] = useState<LightAstNode | undefined>()
+  const [visitors, setVisitors] = useState<LightVisitors>({})
 
   const { toast } = useToast()
 
   const update = (input: string) => {
     try {
-      const result = lightningTransform(input)
+      const result = lightningTransform(input, { visitor: visitors })
       setOutput(result)
       console.log(result)
       urlSaver.setValue('input', input)
@@ -50,126 +54,169 @@ export function Playground() {
     }
   }
 
+  // run transform on mount
   useEffect(() => {
     update(input)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [visitors])
 
+  const theme = useTheme()
+  const actionTab = useAtomValue(activeActionTabAtom)
+
+  return (
+    <LightningContextProvider value={{ input, output, setInput, setOutput, visitors, setVisitors, update }}>
+      <Splitter
+        flexDirection="row"
+        w="100%"
+        height="100%"
+        overflow="hidden"
+        size={[
+          { id: 'input', size: 33 },
+          { id: 'ast', size: 33 },
+          { id: 'inspector', size: 33 },
+        ]}
+      >
+        <SplitterPanel id="input">
+          <Splitter
+            size={[
+              { id: 'editor', size: 50, minSize: 5 },
+              { id: 'actions', size: 50 },
+            ]}
+            orientation="vertical"
+            className={splitter().root}
+          >
+            <SplitterPanel id="editor">
+              <Flex direction="column" w="100%" h="100%" overflow="auto">
+                <CodeMirror
+                  width="100%"
+                  height="100%"
+                  className={css({ flex: 1, minHeight: '0' })}
+                  theme={theme.resolvedTheme === 'dark' ? 'dark' : 'light'}
+                  value={input}
+                  onChange={(value) => {
+                    setInput(value)
+                    return update(value ?? '')
+                  }}
+                  extensions={[cssLang()]}
+                />
+
+                <button
+                  className={button({})}
+                  onClick={() => {
+                    setInput(sample.mediaQueries)
+                    return update(sample.mediaQueries)
+                  }}
+                >
+                  reset to sample
+                </button>
+              </Flex>
+            </SplitterPanel>
+
+            <BottomTabs />
+          </Splitter>
+        </SplitterPanel>
+        <SplitterResizeTrigger id="input:ast" />
+        <SplitterPanel id="ast" py="2" px="5">
+          <Flex w="100%" h="100%" direction="column" overflow="auto">
+            <div className={flex({ fontWeight: 'bold' })}>
+              <span>AST Nodes</span>
+              <ShowDetails ml="auto" />
+            </div>
+            {Array.from(output.astNodes).map((node, i) => (
+              <NodeRow key={i} node={node} selected={selected} setSelected={setSelected} />
+            ))}
+          </Flex>
+        </SplitterPanel>
+        <SplitterResizeTrigger id="ast:inspector" />
+        <SplitterPanel id="inspector">
+          <Splitter
+            orientation="vertical"
+            w="100%"
+            height="100%"
+            overflow="hidden"
+            size={[
+              { id: 'json', size: 66 },
+              { id: 'output', size: 33 },
+            ]}
+          >
+            <SplitterPanel id="json">
+              <InspecterPanel selected={selected} />
+            </SplitterPanel>
+            <SplitterPanel id="output" display={actionTab === 'output' ? 'none' : 'unset'}>
+              <OutputEditor />
+            </SplitterPanel>
+          </Splitter>
+        </SplitterPanel>
+      </Splitter>
+    </LightningContextProvider>
+  )
+}
+
+const ShowDetails = (props?: SystemStyleObject) => {
+  const setWithDetails = useSetAtom(withDetailsAtom)
+
+  return (
+    <Flex {...(props as any)} alignItems="center" gap="2">
+      <Switch id="show-details" color="red" onClick={() => setWithDetails((c) => !c)} />
+      <label htmlFor="show-details">Show details</label>
+    </Flex>
+  )
+}
+
+const expandedPaths = [
+  '$',
+  '$.*',
+  '$.*.*',
+  '$.*.*.children',
+  '$.*.*.children.*',
+  '$.*.*.*.children',
+  '$.*.*.*.children.*',
+  '$.*.*.loc',
+  '$.*.*.loc.*',
+  '$.*.*.*.loc',
+  '$.*.*.*.loc.*',
+]
+const InspecterPanel = ({ selected }: { selected: LightAstNode | undefined }) => {
   const theme = useTheme()
 
   return (
-    <Splitter
-      direction="row"
-      w="100%"
-      height="100%"
-      overflow="hidden"
-      size={[
-        { id: 'a', size: 33 },
-        { id: 'b', size: 33 },
-        { id: 'c', size: 33 },
-      ]}
+    <div
+      className={css({
+        visibility: selected ? 'visible' : 'hidden',
+        display: 'flex',
+        maxHeight: '100%',
+        overflow: 'hidden',
+        w: '100%',
+        h: '100%',
+      })}
     >
-      <SplitterPanel id="a">
-        <Splitter
-          size={[
-            { id: 'editor', size: 50, minSize: 5 },
-            { id: 'artifacts', size: 50 },
-          ]}
-          orientation="vertical"
-          className={splitter().root}
-        >
-          <SplitterPanel id="editor">
-            <Flex direction="column" w="100%" h="100%" overflow="auto">
-              <CodeMirror
-                width="100%"
-                height="100%"
-                className={css({ flex: 1, minHeight: '0' })}
-                theme={theme.resolvedTheme === 'dark' ? 'dark' : 'light'}
-                value={input}
-                onChange={(value) => {
-                  setInput(value)
-                  return update(value ?? '')
-                }}
-                extensions={[cssLang()]}
-              />
-
-              <button
-                className={button({})}
-                onClick={() => {
-                  setInput(sample.mediaQueries)
-                  return update(sample.mediaQueries)
-                }}
-              >
-                reset to sample
-              </button>
-            </Flex>
-          </SplitterPanel>
-
-          <BottomTabs input={input} />
-        </Splitter>
-      </SplitterPanel>
-      <SplitterResizeTrigger id="a:b" />
-      <SplitterPanel id="b" py="2" px="5">
-        <Flex w="100%" h="100%" direction="column" overflow="auto">
-          <div className={css({ fontWeight: 'bold' })}>AST Nodes</div>
-          {Array.from(output.astNodes).map((node, i) => (
-            <NodeRow key={i} node={node} selected={selected} setSelected={setSelected} />
-          ))}
-        </Flex>
-      </SplitterPanel>
-      <SplitterResizeTrigger id="b:c" />
-      <SplitterPanel id="c">
-        <div
-          className={css({
-            visibility: selected ? 'visible' : 'hidden',
+      <div
+        className={css({
+          height: '100%',
+          width: '100%',
+          overflow: 'auto',
+          '& > ol': {
             display: 'flex',
-            maxHeight: '100%',
-            overflow: 'hidden',
-            w: '100%',
-            h: '100%',
-          })}
-        >
-          <div
-            className={css({
-              height: '100%',
+            height: '100%',
+            width: '100%',
+            '& > li': {
               width: '100%',
-              overflow: 'auto',
-              '& > ol': {
-                display: 'flex',
-                height: '100%',
-                width: '100%',
-                '& > li': {
-                  width: '100%',
-                  px: '5!',
-                  py: '5!',
-                },
-                '& span': {
-                  fontSize: 'xs',
-                },
-              },
-            })}
-          >
-            <ObjectInspector
-              theme={theme.resolvedTheme === 'dark' ? 'chromeDark' : undefined}
-              data={selected}
-              expandPaths={[
-                '$',
-                '$.*',
-                '$.*.*',
-                '$.*.*.children',
-                '$.*.*.children.*',
-                '$.*.*.*.children',
-                '$.*.*.*.children.*',
-                '$.*.*.loc',
-                '$.*.*.loc.*',
-                '$.*.*.*.loc',
-                '$.*.*.*.loc.*',
-              ]}
-            />
-          </div>
-        </div>
-      </SplitterPanel>
-    </Splitter>
+              px: '5!',
+              py: '5!',
+            },
+            '& span': {
+              fontSize: 'xs',
+            },
+          },
+        })}
+      >
+        <ObjectInspector
+          theme={theme.resolvedTheme === 'dark' ? 'chromeDark' : undefined}
+          data={selected}
+          expandPaths={expandedPaths}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -240,3 +287,5 @@ const sample = {
 }
 `,
 }
+
+const initialInput = urlSaver.getValue('input') || sample.mediaQueries

@@ -1,4 +1,5 @@
 import * as light from 'lightningcss-wasm'
+import { composeVisitors } from './compose-visitors'
 
 const enc = new TextEncoder()
 const dec = new TextDecoder()
@@ -32,6 +33,7 @@ type UrlNode = { type: 'Url'; data: light.Url }
 type VariableNode = { type: 'Variable'; data: light.Variable }
 type VariableExitNode = { type: 'VariableExit'; data: light.Variable }
 
+export type LightVisitors = light.Visitor<never>
 export type LightAstNode = (
   | AngleNode
   | ColorNode
@@ -131,7 +133,10 @@ export const printNodeWithDetails = (node: LightAstNode) => {
   }
 }
 
-export const lightningTransform = (css: string) => {
+export const lightningTransform = (
+  css: string,
+  options?: Omit<light.TransformOptions<light.CustomAtRules>, 'code' | 'filename'>,
+) => {
   const astNodes = new Set() as Set<LightAstNode>
   const flatNodes = new Set() as Set<VisitorParam>
 
@@ -144,7 +149,7 @@ export const lightningTransform = (css: string) => {
     current = node
   }
 
-  const onExit = (type: LightAstNode['type']) => {
+  const onExit = (_type: LightAstNode['type']) => {
     // console.log('onExit', type, { stack, current })
     current = stack.pop()
   }
@@ -160,132 +165,138 @@ export const lightningTransform = (css: string) => {
   }
 
   const res = light.transform({
-    filename: 'test.css',
-    // minify: true,
-    code: enc.encode(css),
-    visitor: {
-      Angle(angle) {
-        const node = { type: 'Angle', data: angle, children: [] } as LightAstNode
-        addNode(node)
-      },
-      Color(color) {
-        const node = { type: 'Color', data: color, children: [] } as LightAstNode
-        addNode(node)
-      },
-      CustomIdent(ident) {
-        const node = { type: 'CustomIdent', data: ident, children: [] } as LightAstNode
-        addNode(node)
-      },
-      DashedIdent(ident) {
-        const node = { type: 'DashedIdent', data: ident, children: [] } as LightAstNode
-        addNode(node)
-      },
-      Declaration(property) {
-        const node = { type: 'Declaration', data: property, children: [] } as LightAstNode
-        addNode(node)
-        onEnter(node)
-      },
-      DeclarationExit(property) {
-        onExit('DeclarationExit')
-        current = stack.pop()
-        return property
-      },
-      EnvironmentVariable(env) {
-        const node = { type: 'EnvironmentVariable', data: env, children: [] } as LightAstNode
-        addNode(node)
-        onEnter(node)
-      },
-      EnvironmentVariableExit(env) {
-        onExit('EnvironmentVariableExit')
-        current = stack.pop()
-        return
-      },
-      Function(fn) {
-        const node = { type: 'Function', data: fn, children: [] } as LightAstNode
-        addNode(node)
-        onEnter(node)
-      },
-      FunctionExit(fn) {
-        onExit('FunctionExit')
-        current = stack.pop()
-        return
-      },
-      Image(image) {
-        const node = { type: 'Image', data: image, children: [] } as LightAstNode
-        addNode(node)
-        onEnter(node)
-      },
-      ImageExit(image) {
-        onExit('ImageExit')
-        current = stack.pop()
-        return image
-      },
-      MediaQuery(query) {
-        const node = { type: 'MediaQuery', data: query, children: [] } as LightAstNode
-        addNode(node)
-        onEnter(node)
-      },
-      MediaQueryExit(query) {
-        onExit('MediaQueryExit')
-        current = stack.pop()
-        return query
-      },
-      Ratio(ratio) {
-        const node = { type: 'Ratio', data: ratio, children: [] } as LightAstNode
-        addNode(node)
-      },
-      Resolution(resolution) {
-        const node = { type: 'Resolution', data: resolution, children: [] } as LightAstNode
-        addNode(node)
-      },
-      Rule(rule) {
-        const node = { type: 'Rule', data: rule, children: [] } as LightAstNode
-        addNode(node)
-        onEnter(node)
-      },
-      RuleExit(rule) {
-        onExit('RuleExit')
-        current = stack.pop()
-        return rule
-      },
-      Selector(selector) {
-        const node = { type: 'Selector', data: selector, children: [] } as LightAstNode
-        addNode(node)
-      },
-      SupportsCondition(condition) {
-        const node = { type: 'SupportsCondition', data: condition, children: [] } as LightAstNode
-        addNode(node)
-        onEnter(node)
-        return condition
-      },
-      SupportsConditionExit(condition) {
-        onExit('SupportsConditionExit')
-        current = stack.pop()
-        return condition
-      },
-      Time(time) {
-        const node = { type: 'Time', data: time, children: [] } as LightAstNode
-        addNode(node)
-      },
-      Token(token) {
-        const node = { type: 'Token', data: token, children: [] } as LightAstNode
-        addNode(node)
-      },
-      Url(url) {
-        const node = { type: 'Url', data: url, children: [] } as LightAstNode
-        addNode(node)
-      },
-      Variable(variable) {
-        const node = { type: 'Variable', data: variable, children: [] } as LightAstNode
-        addNode(node)
-        onEnter(node)
-      },
-      VariableExit(variable) {
-        onExit('VariableExit')
-        current = stack.pop()
-        return
-      },
+    drafts: {
+      nesting: true,
     },
+    ...options,
+    filename: 'test.css',
+    code: enc.encode(css),
+    visitor: composeVisitors([
+      {
+        Angle(angle) {
+          const node = { type: 'Angle', data: angle, children: [] } as LightAstNode
+          addNode(node)
+        },
+        Color(color) {
+          const node = { type: 'Color', data: color, children: [] } as LightAstNode
+          addNode(node)
+        },
+        CustomIdent(ident) {
+          const node = { type: 'CustomIdent', data: ident, children: [] } as LightAstNode
+          addNode(node)
+        },
+        DashedIdent(ident) {
+          const node = { type: 'DashedIdent', data: ident, children: [] } as LightAstNode
+          addNode(node)
+        },
+        Declaration(property) {
+          const node = { type: 'Declaration', data: property, children: [] } as LightAstNode
+          addNode(node)
+          onEnter(node)
+        },
+        DeclarationExit(property) {
+          onExit('DeclarationExit')
+          current = stack.pop()
+          return property
+        },
+        EnvironmentVariable(env) {
+          const node = { type: 'EnvironmentVariable', data: env, children: [] } as LightAstNode
+          addNode(node)
+          onEnter(node)
+        },
+        EnvironmentVariableExit(_env) {
+          onExit('EnvironmentVariableExit')
+          current = stack.pop()
+          return
+        },
+        Function(fn) {
+          const node = { type: 'Function', data: fn, children: [] } as LightAstNode
+          addNode(node)
+          onEnter(node)
+        },
+        FunctionExit(_fn) {
+          onExit('FunctionExit')
+          current = stack.pop()
+          return
+        },
+        Image(image) {
+          const node = { type: 'Image', data: image, children: [] } as LightAstNode
+          addNode(node)
+          onEnter(node)
+        },
+        ImageExit(image) {
+          onExit('ImageExit')
+          current = stack.pop()
+          return image
+        },
+        MediaQuery(query) {
+          const node = { type: 'MediaQuery', data: query, children: [] } as LightAstNode
+          addNode(node)
+          onEnter(node)
+        },
+        MediaQueryExit(query) {
+          onExit('MediaQueryExit')
+          current = stack.pop()
+          return query
+        },
+        Ratio(ratio) {
+          const node = { type: 'Ratio', data: ratio, children: [] } as LightAstNode
+          addNode(node)
+        },
+        Resolution(resolution) {
+          const node = { type: 'Resolution', data: resolution, children: [] } as LightAstNode
+          addNode(node)
+        },
+        Rule(rule) {
+          const node = { type: 'Rule', data: rule, children: [] } as LightAstNode
+          addNode(node)
+          onEnter(node)
+        },
+        RuleExit(rule) {
+          onExit('RuleExit')
+          current = stack.pop()
+          return rule
+        },
+        Selector(selector) {
+          const node = { type: 'Selector', data: selector, children: [] } as LightAstNode
+          addNode(node)
+        },
+        SupportsCondition(condition) {
+          const node = { type: 'SupportsCondition', data: condition, children: [] } as LightAstNode
+          addNode(node)
+          onEnter(node)
+          return condition
+        },
+        SupportsConditionExit(condition) {
+          onExit('SupportsConditionExit')
+          current = stack.pop()
+          return condition
+        },
+        Time(time) {
+          const node = { type: 'Time', data: time, children: [] } as LightAstNode
+          addNode(node)
+        },
+        Token(token) {
+          const node = { type: 'Token', data: token, children: [] } as LightAstNode
+          addNode(node)
+        },
+        Url(url) {
+          const node = { type: 'Url', data: url, children: [] } as LightAstNode
+          addNode(node)
+        },
+        Variable(variable) {
+          const node = { type: 'Variable', data: variable, children: [] } as LightAstNode
+          addNode(node)
+          onEnter(node)
+        },
+        VariableExit(_variable) {
+          onExit('VariableExit')
+          current = stack.pop()
+          return
+        },
+      },
+      options?.visitor ?? {},
+    ]),
   })
 
   return { astNodes, flatNodes, css: dec.decode(res.code) } as LightningTransformResult

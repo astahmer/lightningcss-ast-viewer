@@ -48,20 +48,22 @@ const deletingParamInUrl = (name: string) => {
   window.history.replaceState(undefined, '', url)
 }
 
-export class UrlSaver {
-  getValue(name: string) {
-    return getDecompressedStringFromUrl(name)
+class UrlSaver<T extends Record<string, string>> {
+  getValue(name: keyof T) {
+    return getDecompressedStringFromUrl(name as string)
   }
 
-  setValue(name: string, value: string) {
-    updateUrlWithCompressedString(name, value)
+  setValue<Key extends keyof T>(name: Key, value: T[Key]) {
+    updateUrlWithCompressedString(name as string, value)
   }
 
-  reset(name: string) {
-    deletingParamInUrl(name)
+  reset(name: keyof T) {
+    deletingParamInUrl(name as string)
   }
 
   resetAll() {
     resetUrl()
   }
 }
+
+export const urlSaver = new UrlSaver<{ input: string; visitors: string }>()

@@ -15,6 +15,9 @@ const wasmContentTypePlugin = {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    target: 'esnext',
+  },
   optimizeDeps: {
     exclude: ['lightningcss-wasm'],
   },
