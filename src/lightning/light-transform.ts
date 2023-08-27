@@ -61,7 +61,7 @@ export type LightAstNode = (
   | UrlNode
   | VariableNode
   | VariableExitNode
-) & { children: LightAstNode[]; parent?: LightAstNode }
+) & { children: LightAstNode[]; parent?: LightAstNode; prev?: LightAstNode; next?: LightAstNode }
 
 export type LightningTransformResult = {
   astNodes: Set<LightAstNode>
@@ -141,6 +141,7 @@ export const lightningTransform = (
   const flatNodes = new Set() as Set<VisitorParam>
 
   let current: LightAstNode | undefined
+  let currentRoot: LightAstNode | undefined
   const stack = [] as LightAstNode[]
 
   const onEnter = (node: LightAstNode) => {
@@ -157,10 +158,22 @@ export const lightningTransform = (
   const addNode = (node: LightAstNode) => {
     flatNodes.add(node.data)
     if (current && current !== node) {
+      const prev = current.children[current.children.length - 1]
+      if (prev) {
+        node.prev = prev
+        node.prev.next = node
+      }
+
       current.children.push(node)
       node.parent = current
     } else {
+      if (currentRoot) {
+        currentRoot.next = node
+        node.prev = currentRoot
+      }
+
       astNodes.add(node)
+      currentRoot = node
     }
   }
 

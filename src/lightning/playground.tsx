@@ -2,7 +2,7 @@ import { css as cssLang } from '@codemirror/lang-css'
 import CodeMirror from '@uiw/react-codemirror'
 import { useEffect, useState } from 'react'
 import { css } from '../../styled-system/css'
-import { Bleed, Flex } from '../../styled-system/jsx'
+import { Bleed, Flex, FlexProps } from '../../styled-system/jsx'
 
 import { useAtomValue } from 'jotai'
 import { ObjectInspector } from 'react-inspector'
@@ -25,11 +25,12 @@ import { urlSaver } from './url-saver'
 
 import { useSetAtom } from 'jotai'
 import { flex } from '../../styled-system/patterns'
-import { SystemStyleObject } from '../../styled-system/types'
 import { Switch } from '../components/ui/switch'
 
 const defaultResult: LightningTransformResult = { astNodes: new Set(), flatNodes: new Set(), css: '' }
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
+
+// TODO add linter + postcss AST equivalent + refresh inspector on output change
 
 export function Playground() {
   const [input, setInput] = useState(initialInput)
@@ -59,6 +60,11 @@ export function Playground() {
     update(input)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visitors])
+
+  // reset selected on AST change
+  useEffect(() => {
+    setSelected(undefined)
+  }, [output.astNodes])
 
   const theme = useTheme()
   const actionTab = useAtomValue(activeActionTabAtom)
@@ -140,7 +146,7 @@ export function Playground() {
             ]}
           >
             <SplitterPanel id="json">
-              <InspecterPanel selected={selected} />
+              <InspectorPanel selected={selected} />
             </SplitterPanel>
             <SplitterPanel id="output" display={actionTab === 'output' ? 'none' : 'unset'}>
               <OutputEditor />
@@ -152,11 +158,11 @@ export function Playground() {
   )
 }
 
-const ShowDetails = (props?: SystemStyleObject) => {
+const ShowDetails = (props?: FlexProps) => {
   const setWithDetails = useSetAtom(withDetailsAtom)
 
   return (
-    <Flex {...(props as any)} alignItems="center" gap="2">
+    <Flex {...(props as FlexProps)} alignItems="center" gap="2">
       <Switch id="show-details" color="red" onClick={() => setWithDetails((c) => !c)} />
       <label htmlFor="show-details">Show details</label>
     </Flex>
@@ -166,17 +172,17 @@ const ShowDetails = (props?: SystemStyleObject) => {
 const expandedPaths = [
   '$',
   '$.*',
-  '$.*.*',
-  '$.*.*.children',
-  '$.*.*.children.*',
-  '$.*.*.*.children',
-  '$.*.*.*.children.*',
-  '$.*.*.loc',
-  '$.*.*.loc.*',
-  '$.*.*.*.loc',
-  '$.*.*.*.loc.*',
+  '$.data.*',
+  '$.data.*.children',
+  '$.data.*.children.*',
+  '$.data.*.*.children',
+  '$.data.*.*.children.*',
+  '$.data.*.loc',
+  '$.data.*.loc.*',
+  '$.data.*.*.loc',
+  '$.data.*.*.loc.*',
 ]
-const InspecterPanel = ({ selected }: { selected: LightAstNode | undefined }) => {
+const InspectorPanel = ({ selected }: { selected: LightAstNode | undefined }) => {
   const theme = useTheme()
 
   return (
@@ -224,10 +230,12 @@ const NodeRow = ({
   node,
   selected,
   setSelected,
+  depth = 0,
 }: {
   node: LightAstNode
   selected: LightAstNode | undefined
   setSelected: (node: LightAstNode) => void
+  depth?: number
 }) => {
   const withDetails = useAtomValue(withDetailsAtom)
 
@@ -240,6 +248,7 @@ const NodeRow = ({
           alignItems: 'center',
           cursor: 'pointer',
           fontWeight: node === selected ? 'bold' : undefined,
+          ml: node.children.length && depth ? '-4' : undefined,
         })}
         onClickCapture={(e) => {
           console.log(node)
@@ -247,15 +256,22 @@ const NodeRow = ({
           return setSelected(node)
         }}
       >
-        <span className={css({ display: node.children.length ? undefined : 'none', fontSize: 'xs', mt: '1', mr: '1' })}>
+        <span
+          className={css({
+            display: node.children.length ? undefined : 'none',
+            fontSize: 'xs',
+            mt: '1',
+            mr: '1',
+          })}
+        >
           ▼{' '}
         </span>
         {withDetails ? printNodeWithDetails(node) + ' ' + (printNodeLoc(node) ?? '') : node.type}
       </span>
       {node.children ? (
-        <Bleed block="0.5" pl="4">
+        <Bleed block="0.5" pl="6">
           {node.children.map((child, i) => (
-            <NodeRow key={i} node={child} selected={selected} setSelected={setSelected} />
+            <NodeRow key={i} node={child} selected={selected} setSelected={setSelected} depth={depth + 1} />
           ))}
         </Bleed>
       ) : null}
