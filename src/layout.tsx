@@ -20,7 +20,7 @@ export const Layout = ({ children }: PropsWithChildren) => {
               Lightning CSS AST Viewer
             </styled.h1>
             <HStack alignItems="center" ml="auto">
-              <styled.a target="blank" href="https://github.com/astahmer/lightning-ast-viewer">
+              <styled.a target="blank" href="https://github.com/astahmer/lightningcss-ast-viewer">
                 <IconButton title="Github" css={{ color: { base: 'colorPalette.500', _dark: 'colorPalette.200' } }}>
                   <GithubIcon />
                 </IconButton>
