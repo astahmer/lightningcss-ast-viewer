@@ -2,7 +2,7 @@ import { css as cssLang } from '@codemirror/lang-css'
 import CodeMirror from '@uiw/react-codemirror'
 import { useEffect, useState } from 'react'
 import { css } from '../../styled-system/css'
-import { Bleed, Flex, FlexProps } from '../../styled-system/jsx'
+import { Bleed, Center, Flex, FlexProps } from '../../styled-system/jsx'
 
 import { useAtomValue } from 'jotai'
 import { ObjectInspector } from 'react-inspector'
@@ -20,6 +20,7 @@ import {
   printNodeLoc,
   printNodeWithDetails,
 } from './light-transform'
+import * as postcss from 'postcss'
 import { activeActionTabAtom, withDetailsAtom } from './store'
 import { urlSaver } from './url-saver'
 
@@ -30,11 +31,12 @@ import { Switch } from '../components/ui/switch'
 const defaultResult: LightningTransformResult = { astNodes: new Set(), flatNodes: new Set(), css: '' }
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
-// TODO add linter + postcss AST equivalent + refresh inspector on output change
+// TODO add linter
 
 export function Playground() {
   const [input, setInput] = useState(initialInput)
   const [output, setOutput] = useState(defaultResult)
+  const [postcssRoot, setPostcssRoot] = useState<postcss.Root | undefined>()
   const [selected, setSelected] = useState<LightAstNode | undefined>()
   const [visitors, setVisitors] = useState<LightVisitors>({})
 
@@ -44,7 +46,9 @@ export function Playground() {
     try {
       const result = lightningTransform(input, { visitor: visitors })
       setOutput(result)
-      console.log(result)
+      const postcssResult = postcss.parse(input)
+      setPostcssRoot(postcssResult)
+      console.log(result, postcssResult)
       urlSaver.setValue('input', input)
     } catch (err) {
       console.error(err)
@@ -123,15 +127,38 @@ export function Playground() {
         </SplitterPanel>
         <SplitterResizeTrigger id="input:ast" />
         <SplitterPanel id="ast" py="2" px="5">
-          <Flex w="100%" h="100%" direction="column" overflow="auto">
-            <div className={flex({ fontWeight: 'bold' })}>
-              <span>AST Nodes</span>
-              <ShowDetails ml="auto" />
-            </div>
-            {Array.from(output.astNodes).map((node, i) => (
-              <NodeRow key={i} node={node} selected={selected} setSelected={setSelected} />
-            ))}
-          </Flex>
+          <Splitter
+            size={[
+              { id: 'lightningcss', size: 50, minSize: 3 },
+              { id: 'postcss', size: 50, minSize: 3 },
+            ]}
+            orientation="vertical"
+            className={splitter().root}
+            gap="0"
+          >
+            <SplitterPanel id="lightningcss" border="none">
+              <Flex w="100%" h="100%" direction="column" overflow="auto">
+                <div className={flex({ fontWeight: 'bold' })}>
+                  <span>LightningCSS AST</span>
+                  <ShowDetails ml="auto" />
+                </div>
+                {Array.from(output.astNodes).map((node, i) => (
+                  <NodeRow key={i} node={node} selected={selected} setSelected={setSelected} />
+                ))}
+              </Flex>
+            </SplitterPanel>
+            <SplitterResizeTrigger id="lightningcss:postcss" my="2" />
+            <SplitterPanel id="postcss" border="none">
+              {postcssRoot ? (
+                <Flex w="100%" h="100%" direction="column" overflow="auto">
+                  <div className={flex({ fontWeight: 'bold' })}>
+                    <span>PostCSS root</span>
+                  </div>
+                  <InspectorPanel data={postcssRoot.toJSON()} expandPaths={['$', '$.nodes', '$.nodes.*']} />
+                </Flex>
+              ) : null}
+            </SplitterPanel>
+          </Splitter>
         </SplitterPanel>
         <SplitterResizeTrigger id="ast:inspector" />
         <SplitterPanel id="inspector">
@@ -146,7 +173,14 @@ export function Playground() {
             ]}
           >
             <SplitterPanel id="json">
-              <InspectorPanel selected={selected} />
+              {/* TODO add AST view ? */}
+              {selected ? (
+                <InspectorPanel data={selected} expandPaths={lightningCssExpandedPaths} />
+              ) : (
+                <Center fontSize="xl" p="4" textAlign="center" fontWeight="bold">
+                  Select a LightningCSS AST node to display it...
+                </Center>
+              )}
             </SplitterPanel>
             <SplitterPanel id="output" display={actionTab === 'output' ? 'none' : 'unset'}>
               <OutputEditor />
@@ -169,7 +203,7 @@ const ShowDetails = (props?: FlexProps) => {
   )
 }
 
-const expandedPaths = [
+const lightningCssExpandedPaths = [
   '$',
   '$.*',
   '$.data.*',
@@ -182,13 +216,15 @@ const expandedPaths = [
   '$.data.*.*.loc',
   '$.data.*.*.loc.*',
 ]
-const InspectorPanel = ({ selected }: { selected: LightAstNode | undefined }) => {
+
+// TODO add Tabs: Inspector (or name prop) / JSON tab = raw json file, no inspector
+const InspectorPanel = ({ data, expandPaths }: { data: unknown | undefined; expandPaths?: string[] }) => {
   const theme = useTheme()
 
   return (
     <div
       className={css({
-        visibility: selected ? 'visible' : 'hidden',
+        visibility: data ? 'visible' : 'hidden',
         display: 'flex',
         maxHeight: '100%',
         overflow: 'hidden',
@@ -218,8 +254,8 @@ const InspectorPanel = ({ selected }: { selected: LightAstNode | undefined }) =>
       >
         <ObjectInspector
           theme={theme.resolvedTheme === 'dark' ? 'chromeDark' : undefined}
-          data={selected}
-          expandPaths={expandedPaths}
+          data={data}
+          expandPaths={expandPaths}
         />
       </div>
     </div>

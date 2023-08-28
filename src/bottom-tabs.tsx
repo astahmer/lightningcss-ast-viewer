@@ -5,7 +5,6 @@ import {
   SegmentGroupIndicator,
   SegmentLabel,
   SplitterPanel,
-  SplitterResizeTrigger,
 } from '@ark-ui/react'
 import { css as cssLang } from '@codemirror/lang-css'
 import { javascript } from '@codemirror/lang-javascript'
@@ -24,7 +23,6 @@ import { actionTabs, activeActionTabAtom } from './lightning/store'
 
 export function BottomTabs() {
   const [open, setOpen] = React.useState(false)
-  // const [activeTab, setActiveTab] = React.useState<(typeof tabs)[number]['id']>(tabs[0].id)
   const [activeTab, setActiveTab] = useAtom(activeActionTabAtom)
   const theme = useTheme()
 
@@ -49,9 +47,6 @@ export function BottomTabs() {
 
   return (
     <>
-      <SplitterResizeTrigger id="editor:actions" asChild hidden={!open}>
-        <div />
-      </SplitterResizeTrigger>
       <SplitterPanel id="actions" className={actionsPanel({ open })}>
         <Flex
           w="full"

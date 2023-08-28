@@ -127,7 +127,7 @@ export const printNodeWithDetails = (node: LightAstNode) => {
     case 'Url':
       return `Url`
     case 'Variable':
-      return `Variable: ${node.data.name}`
+      return `Variable: ${node.data.name.ident}`
     default:
       return 'Unknown'
   }
