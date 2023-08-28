@@ -64,7 +64,7 @@ export type LightAstNode = (
 ) & { children: LightAstNode[]; parent?: LightAstNode; prev?: LightAstNode; next?: LightAstNode }
 
 export type LightningTransformResult = {
-  astNodes: Set<LightAstNode>
+  nodes: Set<LightAstNode>
   flatNodes: Set<VisitorParam>
   css: string
 }
@@ -133,11 +133,13 @@ export const printNodeWithDetails = (node: LightAstNode) => {
   }
 }
 
+// TODO add start/end loc when possible using `node.data.value.loc` and prev/next
+
 export const lightningTransform = (
   css: string,
   options?: Omit<light.TransformOptions<light.CustomAtRules>, 'code' | 'filename'>,
 ) => {
-  const astNodes = new Set() as Set<LightAstNode>
+  const nodes = new Set() as Set<LightAstNode>
   const flatNodes = new Set() as Set<VisitorParam>
 
   let current: LightAstNode | undefined
@@ -172,7 +174,7 @@ export const lightningTransform = (
         node.prev = currentRoot
       }
 
-      astNodes.add(node)
+      nodes.add(node)
       currentRoot = node
     }
   }
@@ -312,5 +314,5 @@ export const lightningTransform = (
     ]),
   })
 
-  return { astNodes, flatNodes, css: dec.decode(res.code) } as LightningTransformResult
+  return { nodes, flatNodes, css: dec.decode(res.code) } as LightningTransformResult
 }

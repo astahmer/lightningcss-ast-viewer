@@ -28,7 +28,7 @@ import { useSetAtom } from 'jotai'
 import { flex } from '../../styled-system/patterns'
 import { Switch } from '../components/ui/switch'
 
-const defaultResult: LightningTransformResult = { astNodes: new Set(), flatNodes: new Set(), css: '' }
+const defaultResult: LightningTransformResult = { nodes: new Set(), flatNodes: new Set(), css: '' }
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
 // TODO add linter
@@ -68,7 +68,7 @@ export function Playground() {
   // reset selected on AST change
   useEffect(() => {
     setSelected(undefined)
-  }, [output.astNodes])
+  }, [output.nodes])
 
   const theme = useTheme()
   const actionTab = useAtomValue(activeActionTabAtom)
@@ -142,7 +142,7 @@ export function Playground() {
                   <span>LightningCSS AST</span>
                   <ShowDetails ml="auto" />
                 </div>
-                {Array.from(output.astNodes).map((node, i) => (
+                {Array.from(output.nodes).map((node, i) => (
                   <NodeRow key={i} node={node} selected={selected} setSelected={setSelected} />
                 ))}
               </Flex>
