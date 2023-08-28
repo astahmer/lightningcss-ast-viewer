@@ -9,7 +9,6 @@ const dec = new TextDecoder()
 
 await light.default()
 
-// TODO add start/end loc when possible using `node.data.value.loc` and prev/next
 const isDebug = false
 
 export const lightningTransform = (
@@ -21,24 +20,63 @@ export const lightningTransform = (
 
   let current: LightAstNode | undefined
   let currentRoot: LightAstNode | undefined
+  let depth = 0
+  const prevWithLocationAtDepth = new Map<number, LightAstNode>()
 
   const stack = [] as LightAstNode[]
+  const paths = [] as string[]
   const source = new SourceText(css)
 
-  const onEnter = (node: LightAstNode) => {
-    isDebug && console.log('onEnter', node.type, { stack, current })
+  const onEnterContainer = (node: LightAstNode) => {
     stack.push(node)
+    depth++
+    paths.push(node.type)
+    isDebug && console.log(depth, `[enter] ${node.type}`, { stack, current, depth }, paths)
     current = node
   }
 
-  const onExit = (type: LightAstNode['type']) => {
-    isDebug && console.log('onExit', type, { stack, current })
+  const onExitContainer = (type: LightAstNode['type']) => {
+    isDebug && console.log(depth, `[exit] ${type}`, { stack, current })
     current = stack.pop()
+    paths.pop()
+    depth--
   }
 
-  const addNode = (node: LightAstNode) => {
-    isDebug && console.log('addNode', node.type, { stack, current })
+  const visitNode = (node: LightAstNode) => {
+    isDebug && console.log(depth, `[visit] ${node.type}`, { stack, current })
     flatNodes.add(node.data)
+
+    const location = getNodeLocation(node)
+    if (location) {
+      // When we're back to the root
+      // Assign prev node location to those that don't have one
+      // Then reset prev node map except depth 0 (root)
+      if (depth === 0) {
+        const zeroDepth = prevWithLocationAtDepth.get(0)
+        prevWithLocationAtDepth.forEach((prevNode) => {
+          if (prevNode.pos) return
+
+          prevNode.pos = {
+            start: getNodeLocation(prevNode)!,
+            end: applyPrevCharacterToLocation(location),
+          }
+          prevNode.text = source.extractRange(
+            prevNode.pos.start.line,
+            prevNode.pos.start.column - 1,
+            prevNode.pos.end.line,
+            prevNode.pos.end.column - 1,
+          )
+        })
+
+        prevWithLocationAtDepth.clear()
+        if (zeroDepth) {
+          prevWithLocationAtDepth.set(0, zeroDepth)
+        }
+        isDebug && console.log('onChangeRoot', Array.from(prevWithLocationAtDepth.keys()))
+      }
+
+      prevWithLocationAtDepth.set(depth, node)
+    }
 
     // is child
     if (current && current !== node) {
@@ -53,24 +91,9 @@ export const lightningTransform = (
       return
     }
 
-    // is not 1st node
+    // is a root node (doesn't have a parent)
     if (currentRoot) {
       currentRoot.next = node
-
-      currentRoot.pos = {
-        start: currentRoot.pos?.start ?? getNodeLocation(currentRoot) ?? { line: 0, column: 0 },
-        end: getNodeLocation(node, applyPrevCharacterToLocation) ?? {
-          line: source.lines.length,
-          column: source.lines[source.lines.length - 1].length,
-        },
-      }
-      currentRoot.text = source.extractRange(
-        currentRoot.pos.start.line,
-        currentRoot.pos.start.column - 1,
-        currentRoot.pos.end.line,
-        currentRoot.pos.end.column - 1,
-      )
-
       node.prev = currentRoot
     }
 
@@ -89,122 +112,122 @@ export const lightningTransform = (
       {
         Angle(angle) {
           const node = { type: 'Angle', data: angle, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         Color(color) {
           const node = { type: 'Color', data: color, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         CustomIdent(ident) {
           const node = { type: 'CustomIdent', data: ident, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         DashedIdent(ident) {
           const node = { type: 'DashedIdent', data: ident, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         Declaration(property) {
           const node = { type: 'Declaration', data: property, children: [] } as LightAstNode
-          addNode(node)
-          onEnter(node)
+          visitNode(node)
+          onEnterContainer(node)
         },
         DeclarationExit(property) {
-          onExit('DeclarationExit')
+          onExitContainer('DeclarationExit')
           current = stack.pop()
           return property
         },
         EnvironmentVariable(env) {
           const node = { type: 'EnvironmentVariable', data: env, children: [] } as LightAstNode
-          addNode(node)
-          onEnter(node)
+          visitNode(node)
+          onEnterContainer(node)
         },
         EnvironmentVariableExit(_env) {
-          onExit('EnvironmentVariableExit')
+          onExitContainer('EnvironmentVariableExit')
           current = stack.pop()
           return
         },
         Function(fn) {
           const node = { type: 'Function', data: fn, children: [] } as LightAstNode
-          addNode(node)
-          onEnter(node)
+          visitNode(node)
+          onEnterContainer(node)
         },
         FunctionExit(_fn) {
-          onExit('FunctionExit')
+          onExitContainer('FunctionExit')
           current = stack.pop()
           return
         },
         Image(image) {
           const node = { type: 'Image', data: image, children: [] } as LightAstNode
-          addNode(node)
-          onEnter(node)
+          visitNode(node)
+          onEnterContainer(node)
         },
         ImageExit(image) {
-          onExit('ImageExit')
+          onExitContainer('ImageExit')
           current = stack.pop()
           return image
         },
         MediaQuery(query) {
           const node = { type: 'MediaQuery', data: query, children: [] } as LightAstNode
-          addNode(node)
-          onEnter(node)
+          visitNode(node)
+          onEnterContainer(node)
         },
         MediaQueryExit(query) {
-          onExit('MediaQueryExit')
+          onExitContainer('MediaQueryExit')
           current = stack.pop()
           return query
         },
         Ratio(ratio) {
           const node = { type: 'Ratio', data: ratio, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         Resolution(resolution) {
           const node = { type: 'Resolution', data: resolution, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         Rule(rule) {
           const node = { type: 'Rule', data: rule, children: [] } as LightAstNode
-          addNode(node)
-          onEnter(node)
+          visitNode(node)
+          onEnterContainer(node)
         },
         RuleExit(rule) {
-          onExit('RuleExit')
+          onExitContainer('RuleExit')
           current = stack.pop()
           return rule
         },
         Selector(selector) {
           const node = { type: 'Selector', data: selector, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         SupportsCondition(condition) {
           const node = { type: 'SupportsCondition', data: condition, children: [] } as LightAstNode
-          addNode(node)
-          onEnter(node)
+          visitNode(node)
+          onEnterContainer(node)
           return condition
         },
         SupportsConditionExit(condition) {
-          onExit('SupportsConditionExit')
+          onExitContainer('SupportsConditionExit')
           current = stack.pop()
           return condition
         },
         Time(time) {
           const node = { type: 'Time', data: time, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         Token(token) {
           const node = { type: 'Token', data: token, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         Url(url) {
           const node = { type: 'Url', data: url, children: [] } as LightAstNode
-          addNode(node)
+          visitNode(node)
         },
         Variable(variable) {
           const node = { type: 'Variable', data: variable, children: [] } as LightAstNode
-          addNode(node)
-          onEnter(node)
+          visitNode(node)
+          onEnterContainer(node)
         },
         VariableExit(_variable) {
-          onExit('VariableExit')
+          onExitContainer('VariableExit')
           current = stack.pop()
           return
         },
@@ -213,20 +236,21 @@ export const lightningTransform = (
     ]),
   })
 
-  // is last node
-  if (currentRoot) {
-    currentRoot.pos = {
-      start: getNodeLocation(currentRoot) ?? { line: 0, column: 0 },
+  // assign prev node location to those that don't have one
+  prevWithLocationAtDepth.forEach((prevNode) => {
+    if (prevNode.pos) return
+
+    prevNode.pos = {
+      start: getNodeLocation(prevNode)!,
       end: { line: source.lines.length - 1, column: source.lines[source.lines.length - 1].length },
     }
-
-    currentRoot.text = source.extractRange(
-      currentRoot.pos.start.line,
-      currentRoot.pos.start.column - 1,
-      currentRoot.pos.end.line,
-      currentRoot.pos.end.column - 1,
+    prevNode.text = source.extractRange(
+      prevNode.pos.start.line,
+      prevNode.pos.start.column - 1,
+      prevNode.pos.end.line,
+      prevNode.pos.end.column - 1,
     )
-  }
+  })
 
   return { nodes, flatNodes, css: dec.decode(res.code) } as LightningTransformResult
 }

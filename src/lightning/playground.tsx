@@ -177,6 +177,7 @@ export function Playground() {
                 </Center>
               )}
             </SplitterPanel>
+            {/* TODO add resize trigger + rm border */}
             <SplitterPanel id="output" display={actionTab === 'output' ? 'none' : 'unset'}>
               <OutputEditor />
             </SplitterPanel>
@@ -297,7 +298,7 @@ const NodeRow = ({
             mr: '1',
           })}
         >
-          ▼{' '}
+          {/* TODO make it clickable, collapse/expand children */}▼{' '}
         </span>
         {withDetails ? printNodeWithDetails(node) + ' ' + (printNodeLoc(node) ?? '') : node.type}
       </span>
