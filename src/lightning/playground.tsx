@@ -12,14 +12,7 @@ import { Splitter, SplitterPanel, SplitterResizeTrigger } from '../components/ui
 import { useToast } from '../components/ui/toast/use-toast'
 import { useTheme } from '../vite-themes/provider'
 import { LightningContextProvider } from './context'
-import {
-  LightAstNode,
-  LightVisitors,
-  LightningTransformResult,
-  lightningTransform,
-  printNodeLoc,
-  printNodeWithDetails,
-} from './light-transform'
+import { lightningTransform } from './light-transform'
 import * as postcss from 'postcss'
 import { activeActionTabAtom, withDetailsAtom } from './store'
 import { urlSaver } from './url-saver'
@@ -27,6 +20,8 @@ import { urlSaver } from './url-saver'
 import { useSetAtom } from 'jotai'
 import { flex } from '../../styled-system/patterns'
 import { Switch } from '../components/ui/switch'
+import { printNodeWithDetails, printNodeLoc } from './print-utils'
+import { LightningTransformResult, LightAstNode, LightVisitors } from './types'
 
 const defaultResult: LightningTransformResult = { nodes: new Set(), flatNodes: new Set(), css: '' }
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
@@ -205,7 +200,9 @@ const ShowDetails = (props?: FlexProps) => {
 
 const lightningCssExpandedPaths = [
   '$',
-  '$.*',
+  '$.pos',
+  '$.pos.*',
+  '$.data',
   '$.data.*',
   '$.data.*.children',
   '$.data.*.children.*',
@@ -305,7 +302,7 @@ const NodeRow = ({
         {withDetails ? printNodeWithDetails(node) + ' ' + (printNodeLoc(node) ?? '') : node.type}
       </span>
       {node.children ? (
-        <Bleed block="0.5" pl="6">
+        <Bleed block="0.5" pl="8">
           {node.children.map((child, i) => (
             <NodeRow key={i} node={child} selected={selected} setSelected={setSelected} depth={depth + 1} />
           ))}

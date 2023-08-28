@@ -1,139 +1,16 @@
 import * as light from 'lightningcss-wasm'
 import { composeVisitors } from './compose-visitors'
+import { LightAstNode, LightningTransformResult, VisitorParam } from './types'
+import { SourceText } from './source-text'
+import { applyPrevCharacterToLocation, getNodeLocation } from './node-location'
 
 const enc = new TextEncoder()
 const dec = new TextDecoder()
 
 await light.default()
 
-type AngleNode = { type: 'Angle'; data: light.Angle }
-type ColorNode = { type: 'Color'; data: light.CssColor }
-type CustomIdentNode = { type: 'CustomIdent'; data: string }
-type DashedIdentNode = { type: 'DashedIdent'; data: string }
-type DeclarationNode = { type: 'Declaration'; data: light.Declaration }
-type DeclarationExitNode = { type: 'DeclarationExit'; data: light.Declaration }
-type EnvironmentVariableNode = { type: 'EnvironmentVariable'; data: light.EnvironmentVariable }
-type EnvironmentVariableExitNode = { type: 'EnvironmentVariableExit'; data: light.EnvironmentVariable }
-type FunctionNode = { type: 'Function'; data: light.Function }
-type FunctionExitNode = { type: 'FunctionExit'; data: light.Function }
-type ImageNode = { type: 'Image'; data: light.Image }
-type ImageExitNode = { type: 'ImageExit'; data: light.Image }
-type MediaQueryNode = { type: 'MediaQuery'; data: light.MediaQuery }
-type MediaQueryExitNode = { type: 'MediaQueryExit'; data: light.MediaQuery }
-type RatioNode = { type: 'Ratio'; data: light.Ratio }
-type ResolutionNode = { type: 'Resolution'; data: light.Resolution }
-type RuleNode = { type: 'Rule'; data: light.Rule }
-type RuleExitNode = { type: 'RuleExit'; data: light.Rule }
-type SelectorNode = { type: 'Selector'; data: light.Selector }
-type SupportsConditionNode = { type: 'SupportsCondition'; data: light.SupportsCondition }
-type SupportsConditionExitNode = { type: 'SupportsConditionExit'; data: light.SupportsCondition }
-type TimeNode = { type: 'Time'; data: light.Time }
-type TokenNode = { type: 'Token'; data: light.Token }
-type UrlNode = { type: 'Url'; data: light.Url }
-type VariableNode = { type: 'Variable'; data: light.Variable }
-type VariableExitNode = { type: 'VariableExit'; data: light.Variable }
-
-export type LightVisitors = light.Visitor<never>
-export type LightAstNode = (
-  | AngleNode
-  | ColorNode
-  | CustomIdentNode
-  | DashedIdentNode
-  | DeclarationNode
-  | DeclarationExitNode
-  | EnvironmentVariableNode
-  | EnvironmentVariableExitNode
-  | FunctionNode
-  | FunctionExitNode
-  | ImageNode
-  | ImageExitNode
-  | MediaQueryNode
-  | MediaQueryExitNode
-  | RatioNode
-  | ResolutionNode
-  | RuleNode
-  | RuleExitNode
-  | SelectorNode
-  | SupportsConditionNode
-  | SupportsConditionExitNode
-  | TimeNode
-  | TokenNode
-  | UrlNode
-  | VariableNode
-  | VariableExitNode
-) & { children: LightAstNode[]; parent?: LightAstNode; prev?: LightAstNode; next?: LightAstNode }
-
-export type LightningTransformResult = {
-  nodes: Set<LightAstNode>
-  flatNodes: Set<VisitorParam>
-  css: string
-}
-
-// type VisitorFn = Exclude<light.Visitor<never>[keyof light.Visitor<never>], undefined>
-// eslint-disable-next-line @typescript-eslint/ban-types
-// type VisitorParam = Exclude<Parameters<Extract<VisitorFn, Function>>, undefined>[0]
-type VisitorParam = LightAstNode['data']
-
-const printLoc = (loc: light.Location) => {
-  return `${loc.line}:${loc.column}`
-}
-
-export const printNodeLoc = (node: LightAstNode) => {
-  if (
-    typeof node.data === 'object' &&
-    'value' in node.data &&
-    typeof node.data.value === 'object' &&
-    node.data.value &&
-    'loc' in node.data.value
-  ) {
-    return `(${printLoc(node.data.value.loc)})`
-  }
-}
-
-export const printNodeWithDetails = (node: LightAstNode) => {
-  switch (node.type) {
-    case 'Angle':
-      return `Angle: ${node.data.value}${node.data.type}`
-    case 'Color':
-      return `Color: ${node.data.type}`
-    case 'CustomIdent':
-      return `CustomIdent: ${node.data}`
-    case 'DashedIdent':
-      return `DashedIdent: ${node.data}`
-    case 'Declaration':
-      return `Declaration: ${node.data.property}`
-    case 'EnvironmentVariable':
-      return `EnvironmentVariable: ${node.data.name}`
-    case 'Function':
-      return `Function: ${node.data.name} ${node.data.arguments.length}`
-    case 'Image':
-      return `Image: ${node.data.type}`
-    case 'MediaQuery':
-      return `MediaQuery: ${node.data.mediaType}`
-    case 'Ratio':
-      return `Ratio: ${node.data}`
-    case 'Resolution':
-      return `Resolution: ${node.data.value}`
-    case 'Rule':
-      return `Rule: ${node.data.type}`
-    case 'Selector':
-      return `Selector: ${node.data.map((s) => s.type).join('')}`
-    case 'SupportsCondition':
-      return `SupportsCondition: ${node.data.value}`
-    case 'Time':
-      return `Time: ${node.data.value}`
-    case 'Token':
-      return `Token: ${node.data.type}`
-    case 'Url':
-      return `Url`
-    case 'Variable':
-      return `Variable: ${node.data.name.ident}`
-    default:
-      return 'Unknown'
-  }
-}
-
 // TODO add start/end loc when possible using `node.data.value.loc` and prev/next
+const isDebug = false
 
 export const lightningTransform = (
   css: string,
@@ -144,21 +21,26 @@ export const lightningTransform = (
 
   let current: LightAstNode | undefined
   let currentRoot: LightAstNode | undefined
+
   const stack = [] as LightAstNode[]
+  const source = new SourceText(css)
 
   const onEnter = (node: LightAstNode) => {
-    // console.log('onEnter', node.type, { stack, current })
+    isDebug && console.log('onEnter', node.type, { stack, current })
     stack.push(node)
     current = node
   }
 
-  const onExit = (_type: LightAstNode['type']) => {
-    // console.log('onExit', type, { stack, current })
+  const onExit = (type: LightAstNode['type']) => {
+    isDebug && console.log('onExit', type, { stack, current })
     current = stack.pop()
   }
 
   const addNode = (node: LightAstNode) => {
+    isDebug && console.log('addNode', node.type, { stack, current })
     flatNodes.add(node.data)
+
+    // is child
     if (current && current !== node) {
       const prev = current.children[current.children.length - 1]
       if (prev) {
@@ -168,15 +50,32 @@ export const lightningTransform = (
 
       current.children.push(node)
       node.parent = current
-    } else {
-      if (currentRoot) {
-        currentRoot.next = node
-        node.prev = currentRoot
-      }
-
-      nodes.add(node)
-      currentRoot = node
+      return
     }
+
+    // is not 1st node
+    if (currentRoot) {
+      currentRoot.next = node
+
+      currentRoot.pos = {
+        start: currentRoot.pos?.start ?? getNodeLocation(currentRoot) ?? { line: 0, column: 0 },
+        end: getNodeLocation(node, applyPrevCharacterToLocation) ?? {
+          line: source.lines.length,
+          column: source.lines[source.lines.length - 1].length,
+        },
+      }
+      currentRoot.text = source.extractRange(
+        currentRoot.pos.start.line,
+        currentRoot.pos.start.column - 1,
+        currentRoot.pos.end.line,
+        currentRoot.pos.end.column - 1,
+      )
+
+      node.prev = currentRoot
+    }
+
+    nodes.add(node)
+    currentRoot = node
   }
 
   const res = light.transform({
@@ -313,6 +212,21 @@ export const lightningTransform = (
       options?.visitor ?? {},
     ]),
   })
+
+  // is last node
+  if (currentRoot) {
+    currentRoot.pos = {
+      start: getNodeLocation(currentRoot) ?? { line: 0, column: 0 },
+      end: { line: source.lines.length - 1, column: source.lines[source.lines.length - 1].length },
+    }
+
+    currentRoot.text = source.extractRange(
+      currentRoot.pos.start.line,
+      currentRoot.pos.start.column - 1,
+      currentRoot.pos.end.line,
+      currentRoot.pos.end.column - 1,
+    )
+  }
 
   return { nodes, flatNodes, css: dec.decode(res.code) } as LightningTransformResult
 }

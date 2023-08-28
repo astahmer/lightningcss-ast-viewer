@@ -1,5 +1,5 @@
 import { createContextWithHook } from 'pastable/react'
-import { LightVisitors, LightningTransformResult } from './light-transform'
+import { LightningTransformResult, LightVisitors } from './types'
 
 type LightningContext = {
   input: string
