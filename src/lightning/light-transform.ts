@@ -1,7 +1,7 @@
 import * as light from 'lightningcss-wasm'
 import { composeVisitors } from './compose-visitors'
 import { LightAstNode, LightningTransformResult, VisitorParam } from './types'
-import { SourceText } from './source-text'
+import { SourceText } from '../lib/source-text'
 import { applyPrevCharacterToLocation, getNodeLocation } from './node-location'
 
 const enc = new TextEncoder()

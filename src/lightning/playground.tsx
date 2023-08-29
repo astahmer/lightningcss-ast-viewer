@@ -15,17 +15,17 @@ import { useTheme } from '../vite-themes/provider'
 import { LightningContextProvider } from './context'
 import { lightningTransform } from './light-transform'
 import { activeActionTabAtom, withDetailsAtom } from './store'
-import { urlSaver } from './url-saver'
+import { urlSaver } from '../lib/url-saver'
 
 import { Decoration } from '@codemirror/view'
 
 import { useSetAtom } from 'jotai'
 import { flex } from '../../styled-system/patterns'
 import { Switch } from '../components/ui/switch'
-import { highlightPlugin, highlighter } from './codemirror-highlight-plugin'
-import { lineNumberStartFromZeroPlugin } from './codemirror-line-number-from-zero-plugin'
-import { createPositionPlugin } from './codemirror-position-plugin'
-import { printNodeLoc, printNodeWithDetails } from './print-utils'
+import { highlightPlugin, highlighter } from '../codemirror/codemirror-highlight-plugin'
+import { lineNumberStartFromZeroPlugin } from '../codemirror/codemirror-line-number-from-zero-plugin'
+import { createPositionPlugin } from '../codemirror/codemirror-position-plugin'
+import { printNodeLoc, printNodeWithDetails } from './node-print-utils'
 import { LightAstNode, LightVisitors, LightningTransformResult } from './types'
 
 const positionStyle = css({
@@ -395,26 +395,25 @@ const NodeRow = ({
 const sample = {
   mediaQueries: `@media (min-width: 990px) {
   .bg {
-    background-color: yellow;
+    background-color: red;
   }
 }
 
 .bg {
-  background-color: red;
+  background-color: green;
 }
 
 @media (max-width: 1290px) {
   .bg {
-    background-color: yellow;
+    background-color: blue;
   }
 }
 
 @media (min-width: 640px) {
   .bg {
-    background-color: blue;
+    background-color: yellow;
   }
-}
-`,
+}`,
 }
 
 const initialInput = urlSaver.getValue('input') || sample.mediaQueries

@@ -1,5 +1,5 @@
 import * as light from 'lightningcss-wasm'
-import { SourceText } from './source-text'
+import { SourceText } from '../lib/source-text'
 
 type AngleNode = { type: 'Angle'; data: light.Angle }
 type ColorNode = { type: 'Color'; data: light.CssColor }
