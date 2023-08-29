@@ -20,6 +20,14 @@ export class SourceText {
     return this._lines
   }
 
+  get lastLineIndex() {
+    return this._lines.length - 1
+  }
+
+  get lastLineColumn() {
+    return { line: this.lastLineIndex, column: this._lines[this.lastLineIndex].length }
+  }
+
   getPosAtLineAndColumn(line: number, column: number, strict = true): number {
     const _line = strict ? line : line < 0 ? 0 : line >= this._lines.length ? this._lines.length - 1 : line
     const _column = strict

@@ -42,6 +42,8 @@ const defaultResult: LightningTransformResult = { nodes: new Set(), flatNodes: n
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
 // TODO add linter
+// TODO display error in output or inspector
+// TODO click in input -> select AST node + display in inspector
 
 export function Playground() {
   const [input, setInput] = useState(initialInput)
@@ -122,7 +124,7 @@ export function Playground() {
                   minH="0"
                   h="100%"
                   ref={(ref) => {
-                    if (ref) positionPluginRef.current = createPositionPlugin(ref, positionStyle)
+                    if (ref) positionPluginRef.current = createPositionPlugin(ref, positionStyle, true)
                   }}
                 >
                   <div className={css({ pos: 'relative', minH: 0, overflow: 'auto', h: '100%' })}>
@@ -206,7 +208,7 @@ export function Playground() {
                             pos.start.column - 1,
                             false,
                           )
-                          const endPos = output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column - 1, false)
+                          const endPos = output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column, false)
 
                           // Reset all marks
                           view.dispatch({ effects: highlighter.removeMarks(0, input.length) })

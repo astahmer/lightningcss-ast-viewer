@@ -16,12 +16,12 @@ export const getNodeLocation = (
   }
 }
 
-export const setLocationToPrevCharacter = (location: light.Location) => {
-  if (location.column > 1) {
+const setLocationToPrevCharacter = (location: light.Location) => {
+  if (location.column > 0) {
     return { line: location.line, column: location.column - 1 }
   }
 
-  if (location.line > 1) {
+  if (location.line > 0) {
     return { line: location.line - 1, column: location.column }
   }
 

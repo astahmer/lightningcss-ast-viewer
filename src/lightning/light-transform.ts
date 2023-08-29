@@ -25,7 +25,7 @@ export const lightningTransform = (
 
   const stack = [] as LightAstNode[]
   const paths = [] as string[]
-  const source = new SourceText(css)
+  const source = new LightningSourceText(css)
 
   const onEnterContainer = (node: LightAstNode) => {
     stack.push(node)
@@ -60,14 +60,10 @@ export const lightningTransform = (
 
           prevNode.pos = {
             start: getNodeLocation(prevNode)!,
-            end: applyPrevCharacterToLocation(location, prevDepth + 1),
+            end: applyPrevCharacterToLocation(location, prevDepth + 2),
           }
-          prevNode.text = source.extractRange(
-            prevNode.pos.start.line,
-            prevNode.pos.start.column - 1,
-            prevNode.pos.end.line,
-            prevNode.pos.end.column - 1,
-          )
+
+          prevNode.text = source.extractNodeRange(prevNode)
         })
 
         prevWithLocationAtDepth.clear()
@@ -236,18 +232,32 @@ export const lightningTransform = (
 
     prevNode.pos = {
       start: getNodeLocation(prevNode)!,
-      end: applyPrevCharacterToLocation(
-        { line: source.lines.length - 1, column: source.lines[source.lines.length - 1].length },
-        prevDepth,
-      ),
+      end: applyPrevCharacterToLocation(source.lastLineColumn, prevDepth),
     }
-    prevNode.text = source.extractRange(
-      prevNode.pos.start.line,
-      prevNode.pos.start.column - 1,
-      prevNode.pos.end.line,
-      prevNode.pos.end.column - 1,
-    )
+    prevNode.text = source.extractNodeRange(prevNode)
   })
 
   return { nodes, flatNodes, css: dec.decode(res.code), source } as LightningTransformResult
+}
+
+class LightningSourceText extends SourceText {
+  private _textByNode = new WeakMap<LightAstNode, string>()
+
+  constructor(text: string) {
+    super(text)
+  }
+
+  extractNodeRange(node: LightAstNode) {
+    if (!node.pos) return ''
+    if (this._textByNode.has(node)) return this._textByNode.get(node)!
+
+    const text = this.extractRange(
+      node.pos.start.line,
+      node.pos.start.column - 1,
+      node.pos.end.line,
+      node.pos.end.column - 1,
+    )
+    this._textByNode.set(node, text)
+    return text
+  }
 }
