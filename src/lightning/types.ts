@@ -1,4 +1,5 @@
 import * as light from 'lightningcss-wasm'
+import { SourceText } from './source-text'
 
 type AngleNode = { type: 'Angle'; data: light.Angle }
 type ColorNode = { type: 'Color'; data: light.CssColor }
@@ -70,4 +71,5 @@ export type LightningTransformResult = {
   nodes: Set<LightAstNode>
   flatNodes: Set<VisitorParam>
   css: string
+  source: SourceText
 }

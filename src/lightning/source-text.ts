@@ -20,24 +20,33 @@ export class SourceText {
     return this._lines
   }
 
-  getPosAtLineAndColumn(line: number, column: number): number {
+  getPosAtLineAndColumn(line: number, column: number, strict = true): number {
+    const _line = strict ? line : line < 0 ? 0 : line >= this._lines.length ? this._lines.length - 1 : line
+    const _column = strict
+      ? column
+      : column < 0
+      ? 0
+      : column > this._lines[_line].length
+      ? this._lines[_line].length
+      : column
+
     // Validation
-    if (line < 0 || line >= this._lines.length) {
+    if (_line < 0 || _line >= this._lines.length) {
       throw new Error('Line number out of range.')
     }
-    if (column < 0 || column > this._lines[line].length) {
+    if (_column < 0 || _column > this._lines[_line].length) {
       throw new Error('Column number out of range.')
     }
 
     let index = 0
 
     // Add lengths of preceding lines
-    for (let i = 0; i < line; i++) {
+    for (let i = 0; i < _line; i++) {
       index += this._lines[i].length + 1 // +1 for newline character
     }
 
     // Add the column value
-    index += column
+    index += _column
 
     return index
   }

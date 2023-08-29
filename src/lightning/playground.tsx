@@ -1,10 +1,11 @@
 import { css as cssLang } from '@codemirror/lang-css'
-import CodeMirror from '@uiw/react-codemirror'
-import { useEffect, useState } from 'react'
-import { css } from '../../styled-system/css'
+import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror'
+import { useEffect, useRef, useState } from 'react'
+import { css, cx } from '../../styled-system/css'
 import { Bleed, Center, Flex, FlexProps } from '../../styled-system/jsx'
 
 import { useAtomValue } from 'jotai'
+import * as postcss from 'postcss'
 import { ObjectInspector } from 'react-inspector'
 import { button, splitter } from '../../styled-system/recipes'
 import { BottomTabs, OutputEditor } from '../bottom-tabs'
@@ -13,17 +14,31 @@ import { useToast } from '../components/ui/toast/use-toast'
 import { useTheme } from '../vite-themes/provider'
 import { LightningContextProvider } from './context'
 import { lightningTransform } from './light-transform'
-import * as postcss from 'postcss'
 import { activeActionTabAtom, withDetailsAtom } from './store'
 import { urlSaver } from './url-saver'
+
+import { Decoration } from '@codemirror/view'
 
 import { useSetAtom } from 'jotai'
 import { flex } from '../../styled-system/patterns'
 import { Switch } from '../components/ui/switch'
-import { printNodeWithDetails, printNodeLoc } from './print-utils'
-import { LightningTransformResult, LightAstNode, LightVisitors } from './types'
+import { highlightPlugin, highlighter } from './codemirror-highlight-plugin'
+import { lineNumberStartFromZeroPlugin } from './codemirror-line-number-from-zero-plugin'
+import { createPositionPlugin } from './codemirror-position-plugin'
+import { printNodeLoc, printNodeWithDetails } from './print-utils'
+import { LightAstNode, LightVisitors, LightningTransformResult } from './types'
 
-const defaultResult: LightningTransformResult = { nodes: new Set(), flatNodes: new Set(), css: '' }
+const positionStyle = css({
+  mt: 'auto',
+  p: '5px',
+  w: '100%',
+  backgroundColor: { base: '#f5f5f5', _dark: 'bg.subtle' },
+  color: { base: '#333', _dark: '#ddd' },
+  borderTop: { base: '1px solid #ddd', _dark: '1px solid #333' },
+  textAlign: 'center',
+})
+
+const defaultResult: LightningTransformResult = { nodes: new Set(), flatNodes: new Set(), css: '', source: {} as any }
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
 // TODO add linter
@@ -45,6 +60,17 @@ export function Playground() {
       setPostcssRoot(postcssResult)
       console.log(result, postcssResult)
       urlSaver.setValue('input', input)
+
+      // reset selected on output change
+      if (result.css !== output.css) {
+        setSelected(undefined)
+
+        // reset highlight marks on output change
+        const view = editorRef.current?.view
+        if (view) {
+          view.dispatch({ effects: highlighter.removeMarks(0, input.length) })
+        }
+      }
     } catch (err) {
       console.error(err)
       toast({
@@ -60,13 +86,11 @@ export function Playground() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visitors])
 
-  // reset selected on AST change
-  useEffect(() => {
-    setSelected(undefined)
-  }, [output.nodes])
-
   const theme = useTheme()
   const actionTab = useAtomValue(activeActionTabAtom)
+
+  const editorRef = useRef<ReactCodeMirrorRef>(null)
+  const positionPluginRef = useRef<ReturnType<typeof createPositionPlugin>>()
 
   return (
     <LightningContextProvider value={{ input, output, setInput, setOutput, visitors, setVisitors, update }}>
@@ -91,22 +115,39 @@ export function Playground() {
             className={splitter().root}
           >
             <SplitterPanel id="editor">
-              <Flex direction="column" w="100%" h="100%" overflow="auto">
-                <CodeMirror
-                  width="100%"
-                  height="100%"
-                  className={css({ flex: 1, minHeight: '0' })}
-                  theme={theme.resolvedTheme === 'dark' ? 'dark' : 'light'}
-                  value={input}
-                  onChange={(value) => {
-                    setInput(value)
-                    return update(value ?? '')
+              <Flex direction="column" w="100%" h="100%">
+                <Flex
+                  direction="column"
+                  pos="relative"
+                  minH="0"
+                  h="100%"
+                  ref={(ref) => {
+                    if (ref) positionPluginRef.current = createPositionPlugin(ref, positionStyle)
                   }}
-                  extensions={[cssLang()]}
-                />
+                >
+                  <div className={css({ pos: 'relative', minH: 0, overflow: 'auto', h: '100%' })}>
+                    <CodeMirror
+                      ref={editorRef}
+                      width="100%"
+                      height="100%"
+                      className={css({ flex: 1, minHeight: '0', maxH: '100%', h: '100%' })}
+                      theme={theme.resolvedTheme === 'dark' ? 'dark' : 'light'}
+                      value={input}
+                      onChange={(value) => {
+                        setInput(value)
+                        return update(value ?? '')
+                      }}
+                      extensions={
+                        [cssLang(), highlightPlugin, lineNumberStartFromZeroPlugin, positionPluginRef.current].filter(
+                          Boolean,
+                        ) as any
+                      }
+                    />
+                  </div>
+                </Flex>
 
                 <button
-                  className={button({})}
+                  className={cx(button(), css({ flexShrink: 0 }))}
                   onClick={() => {
                     setInput(sample.mediaQueries)
                     return update(sample.mediaQueries)
@@ -138,7 +179,43 @@ export function Playground() {
                   <ShowDetails ml="auto" />
                 </div>
                 {Array.from(output.nodes).map((node, i) => (
-                  <NodeRow key={i} node={node} selected={selected} setSelected={setSelected} />
+                  <NodeRow
+                    key={i}
+                    node={node}
+                    selected={selected}
+                    setSelected={(node) => {
+                      setSelected(node)
+
+                      const pos = node.pos
+                      if (!pos) return
+
+                      if (editorRef.current) {
+                        const highlightMark = Decoration.mark({
+                          attributes: {
+                            class: cx(
+                              // _dark #6f7163
+                              css({ backgroundColor: { base: '#ffd991', _dark: 'black' } }),
+                              'lightningcss-highlight',
+                            ),
+                          },
+                        })
+                        const view = editorRef.current?.view
+                        if (view) {
+                          const startPos = output.source.getPosAtLineAndColumn(
+                            pos.start.line,
+                            pos.start.column - 1,
+                            false,
+                          )
+                          const endPos = output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column - 1, false)
+
+                          // Reset all marks
+                          view.dispatch({ effects: highlighter.removeMarks(0, input.length) })
+                          // Add new mark
+                          view.dispatch({ effects: highlighter.addMarks.of([highlightMark.range(startPos, endPos)]) })
+                        }
+                      }
+                    }}
+                  />
                 ))}
               </Flex>
             </SplitterPanel>

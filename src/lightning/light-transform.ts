@@ -53,12 +53,12 @@ export const lightningTransform = (
       // Then reset prev node map except depth 0 (root)
       if (depth === 0) {
         const zeroDepth = prevWithLocationAtDepth.get(0)
-        prevWithLocationAtDepth.forEach((prevNode) => {
+        prevWithLocationAtDepth.forEach((prevNode, prevDepth) => {
           if (prevNode.pos) return
 
           prevNode.pos = {
             start: getNodeLocation(prevNode)!,
-            end: applyPrevCharacterToLocation(location),
+            end: applyPrevCharacterToLocation(location, prevDepth + 1),
           }
           prevNode.text = source.extractRange(
             prevNode.pos.start.line,
@@ -237,12 +237,15 @@ export const lightningTransform = (
   })
 
   // assign prev node location to those that don't have one
-  prevWithLocationAtDepth.forEach((prevNode) => {
+  prevWithLocationAtDepth.forEach((prevNode, prevDepth) => {
     if (prevNode.pos) return
 
     prevNode.pos = {
       start: getNodeLocation(prevNode)!,
-      end: { line: source.lines.length - 1, column: source.lines[source.lines.length - 1].length },
+      end: applyPrevCharacterToLocation(
+        { line: source.lines.length - 1, column: source.lines[source.lines.length - 1].length },
+        prevDepth,
+      ),
     }
     prevNode.text = source.extractRange(
       prevNode.pos.start.line,
@@ -252,5 +255,5 @@ export const lightningTransform = (
     )
   })
 
-  return { nodes, flatNodes, css: dec.decode(res.code) } as LightningTransformResult
+  return { nodes, flatNodes, css: dec.decode(res.code), source } as LightningTransformResult
 }
