@@ -1,6 +1,6 @@
 import { css as cssLang } from '@codemirror/lang-css'
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { css, cx } from '../../styled-system/css'
 import { Bleed, Center, Flex, FlexProps, Spacer } from '../../styled-system/jsx'
 
@@ -300,6 +300,8 @@ const NodeRow = ({
   const actor = useLightningContext()
   const withDetails = useSelector(actor, (state) => state.context.ui.withTreeDetails)
 
+  const [isExpanded, setIsExpanded] = useState(true)
+
   return (
     <Flex direction="column" mt={node.parent ? undefined : '1'}>
       <span
@@ -311,25 +313,33 @@ const NodeRow = ({
           fontWeight: node === selected ? 'bold' : undefined,
           ml: node.children.length && depth ? '-4' : undefined,
         })}
-        onClickCapture={(e) => {
+        onClick={(e) => {
           console.log(node)
           e.stopPropagation()
           return setSelected(node)
         }}
+        onDoubleClick={() => {
+          setIsExpanded(!isExpanded)
+        }}
       >
         <span
+          onClickCapture={(e) => {
+            e.stopPropagation()
+            setIsExpanded(!isExpanded)
+          }}
           className={css({
             display: node.children.length ? undefined : 'none',
             fontSize: 'xs',
             mt: '1',
             mr: '1',
+            cursor: 'pointer',
           })}
         >
-          {/* TODO make it clickable, collapse/expand children */}▼{' '}
+          {isExpanded ? '▼' : '▶'}{' '}
         </span>
         {withDetails ? printNodeWithDetails(node) + ' ' + (printNodeLoc(node) ?? '') : node.type}
       </span>
-      {node.children ? (
+      {isExpanded && node.children ? (
         <Bleed block="0.5" pl="8">
           {node.children.map((child, i) => (
             <NodeRow key={i} node={child} selected={selected} setSelected={setSelected} depth={depth + 1} />
