@@ -38,12 +38,12 @@ dependencies:
   '@uiw/react-codemirror':
     specifier: ^4.21.10
     version: 4.21.10(@babel/runtime@7.22.11)(@codemirror/autocomplete@6.9.0)(@codemirror/language@6.9.0)(@codemirror/lint@6.4.0)(@codemirror/search@6.5.1)(@codemirror/state@6.2.1)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.17.0)(codemirror@6.0.1)(react-dom@18.2.0)(react@18.2.0)
+  '@xstate/react':
+    specifier: 4.0.0-beta.8
+    version: 4.0.0-beta.8(@types/react@18.2.20)(react@18.2.0)(xstate@5.0.0-beta.24)
   esbuild-wasm:
     specifier: ^0.19.2
     version: 0.19.2
-  jotai:
-    specifier: ^2.4.0
-    version: 2.4.0(@types/react@18.2.20)(react@18.2.0)
   lightningcss-wasm:
     specifier: ^1.21.7
     version: 1.21.7
@@ -55,7 +55,7 @@ dependencies:
     version: 1.5.0
   pastable:
     specifier: ^2.2.1
-    version: 2.2.1(react@18.2.0)
+    version: 2.2.1(react@18.2.0)(xstate@5.0.0-beta.24)
   postcss:
     specifier: ^8.4.28
     version: 8.4.28
@@ -71,6 +71,9 @@ dependencies:
   react-inspector:
     specifier: ^6.0.2
     version: 6.0.2(react@18.2.0)
+  xstate:
+    specifier: 5.0.0-beta.24
+    version: 5.0.0-beta.24
 
 devDependencies:
   '@pandacss/dev':
@@ -2555,6 +2558,26 @@ packages:
   /@vue/shared@3.3.4:
     resolution: {integrity: sha512-7OjdcV8vQ74eiz1TZLzZP4JwqM5fA94K6yntPS5Z25r9HDuGNzaGdgvwKYq6S+MxwF0TFRwe50fIR/MYnakdkQ==}
 
+  /@xstate/react@4.0.0-beta.8(@types/react@18.2.20)(react@18.2.0)(xstate@5.0.0-beta.24):
+    resolution: {integrity: sha512-27L6LJP/7hWyEY5vtvfD/N3wgVgVTyTrbL9n25iT1OV3Shg3lpfA2hA/mJppttLNhkR/7V3WoFC4fmKu1BwVSA==}
+    peerDependencies:
+      '@xstate/fsm': ^3.0.0-beta.3
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+      xstate: ^5.0.0-beta.18
+    peerDependenciesMeta:
+      '@xstate/fsm':
+        optional: true
+      xstate:
+        optional: true
+    dependencies:
+      react: 18.2.0
+      use-isomorphic-layout-effect: 1.1.2(@types/react@18.2.20)(react@18.2.0)
+      use-sync-external-store: 1.2.0(react@18.2.0)
+      xstate: 5.0.0-beta.24
+    transitivePeerDependencies:
+      - '@types/react'
+    dev: false
+
   /@zag-js/accordion@0.12.0:
     resolution: {integrity: sha512-MUfM5aPIp8X2n3/AUirZG2b7tuVNy7xGJ4EnKyM9OzZP8cUaSzhOIOoVnvWl5ZY6OF5CIcZmRvCpl0vO6F5Tqg==}
     dependencies:
@@ -4821,22 +4844,6 @@ packages:
     resolution: {integrity: sha512-oVhqoRDaBXf7sjkll95LHVS6Myyyb1zaunVwk4Z0+WPSW4gjS0pl01zYKHScTuyEhQsFxV5L4DR5r+YqSyqyyg==}
     hasBin: true
 
-  /jotai@2.4.0(@types/react@18.2.20)(react@18.2.0):
-    resolution: {integrity: sha512-NUHJdAJe3C8Prf0DD6EzezCATjkNvfCNI7pgkaX7bCPPsqE0oK8L9RzZsEhz/UxFoGRayXwacTvAli0VEYKkqQ==}
-    engines: {node: '>=12.20.0'}
-    peerDependencies:
-      '@types/react': '>=17.0.0'
-      react: '>=17.0.0'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react:
-        optional: true
-    dependencies:
-      '@types/react': 18.2.20
-      react: 18.2.0
-    dev: false
-
   /js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -5590,7 +5597,7 @@ packages:
   /parse5@6.0.1:
     resolution: {integrity: sha512-Ofn/CTFzRGTTxwpNEs9PP93gXShHcTq255nzRYSKe8AkVpZY7e1fpmTfOyoIvjP5HG7Z2ZM7VS9PPhQGW2pOpw==}
 
-  /pastable@2.2.1(react@18.2.0):
+  /pastable@2.2.1(react@18.2.0)(xstate@5.0.0-beta.24):
     resolution: {integrity: sha512-K4ClMxRKpgN4sXj6VIPPrvor/TMp2yPNCGtfhvV106C73SwefQ3FuegURsH7AQHpqu0WwbvKXRl1HQxF6qax9w==}
     engines: {node: '>=14.x'}
     peerDependencies:
@@ -5606,6 +5613,7 @@ packages:
       react: 18.2.0
       ts-toolbelt: 9.6.0
       type-fest: 3.13.1
+      xstate: 5.0.0-beta.24
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -6448,6 +6456,27 @@ packages:
       punycode: 2.3.0
     dev: true
 
+  /use-isomorphic-layout-effect@1.1.2(@types/react@18.2.20)(react@18.2.0):
+    resolution: {integrity: sha512-49L8yCO3iGT/ZF9QttjwLF/ZD9Iwto5LnH5LmEdk/6cFmXddqi2ulF0edxTwjj+7mqvpVVGQWvbXZdn32wRSHA==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+    dependencies:
+      '@types/react': 18.2.20
+      react: 18.2.0
+    dev: false
+
+  /use-sync-external-store@1.2.0(react@18.2.0):
+    resolution: {integrity: sha512-eEgnFxGQ1Ife9bzYs6VLi8/4X6CObHMw9Qr9tPY43iKwsPw8xE8+EFsf/2cFZ5S3esXgpWgtSCtLNS41F+sKPA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: 18.2.0
+    dev: false
+
   /util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
@@ -6754,6 +6783,10 @@ packages:
   /wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
     dev: true
+
+  /xstate@5.0.0-beta.24:
+    resolution: {integrity: sha512-Ti43pA1RYptHiRlaIrUmVE9CJQe+FFBsQZP7w+n0a4R4ywFtuLcec7qUSHxRplsCAhlJNkEWMBeiW4yc1RrNRg==}
+    dev: false
 
   /yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}

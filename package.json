@@ -22,8 +22,8 @@
     "@radix-ui/react-toast": "^1.1.4",
     "@shadow-panda/style-context": "^0.4.0",
     "@uiw/react-codemirror": "^4.21.10",
+    "@xstate/react": "4.0.0-beta.8",
     "esbuild-wasm": "^0.19.2",
-    "jotai": "^2.4.0",
     "lightningcss-wasm": "^1.21.7",
     "lucide-react": "^0.269.0",
     "lz-string": "^1.5.0",
@@ -32,7 +32,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^4.10.1",
-    "react-inspector": "^6.0.2"
+    "react-inspector": "^6.0.2",
+    "xstate": "5.0.0-beta.24"
   },
   "devDependencies": {
     "@pandacss/dev": "^0.12.2",

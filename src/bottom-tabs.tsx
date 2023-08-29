@@ -9,25 +9,33 @@ import {
 import { css as cssLang } from '@codemirror/lang-css'
 import { javascript } from '@codemirror/lang-javascript'
 import CodeMirror from '@uiw/react-codemirror'
+import { useSelector } from '@xstate/react'
 import { ChevronUpIcon } from 'lucide-react'
 import React, { useEffect } from 'react'
 import { css, cva } from '../styled-system/css'
 import { Flex, styled as panda } from '../styled-system/jsx'
 import { hstack } from '../styled-system/patterns'
-import { useTheme } from './vite-themes/provider'
 import { esbuildTransform } from './lib/esbuild-transform'
-import { useLightningContext } from './lightning/context'
 import { urlSaver } from './lib/url-saver'
-import { useAtom } from 'jotai'
-import { actionTabs, activeActionTabAtom } from './lightning/store'
+import { useLightningContext } from './lightning/context'
+import { useTheme } from './vite-themes/provider'
+
+const actionTabs = [
+  { id: 'output', label: 'Output' },
+  { id: 'visitors', label: 'Visitors' },
+] as const
 
 export function BottomTabs() {
-  const [open, setOpen] = React.useState(false)
-  const [activeTab, setActiveTab] = useAtom(activeActionTabAtom)
   const theme = useTheme()
-
   const [visitorsInput, setVisitorsInput] = React.useState(visitorSample)
-  const { setVisitors } = useLightningContext()
+
+  const actor = useLightningContext()
+  const send = actor.send
+
+  const context = useSelector(actor, (state) => state.context)
+  const [isOpen, toggle] = [context.ui.isInputBottomPanelOpen, () => send({ type: 'ToggleBottomPanel' })]
+
+  const activeTab = context.ui.activeInputTab
 
   const update = async (value: string) => {
     setVisitorsInput(value)
@@ -35,7 +43,7 @@ export function BottomTabs() {
     const mod = eval(code)
     console.log({ code, mod })
 
-    setVisitors(mod)
+    send({ type: 'ChangeVisitors', params: { visitors: mod } })
     urlSaver.setValue('visitors', value)
   }
 
@@ -47,7 +55,7 @@ export function BottomTabs() {
 
   return (
     <>
-      <SplitterPanel id="actions" className={actionsPanel({ open })}>
+      <SplitterPanel id="actions" className={actionsPanel({ open: isOpen })}>
         <Flex
           w="full"
           h="12"
@@ -58,26 +66,26 @@ export function BottomTabs() {
           justify="space-between"
           borderBottomWidth="1px"
           onClick={() => {
-            setOpen(!open)
+            toggle()
           }}
           zIndex={2}
         >
           <SegmentGroup
             orientation="horizontal"
             className={hstack()}
-            data-expanded={open ? '' : undefined}
+            data-expanded={isOpen ? '' : undefined}
             value={activeTab}
             onClick={(e) => {
-              if (open) e.stopPropagation()
+              if (isOpen) e.stopPropagation()
             }}
-            onChange={(e) => setActiveTab(e.value as never)}
+            onChange={(e) => send({ type: 'SetActiveInputTab', params: { tab: e.value as never } })}
           >
             {actionTabs.map((option, id) => {
               return (
                 <Segment
                   key={id}
                   value={option.id}
-                  data-expanded={open ? '' : undefined}
+                  data-expanded={isOpen ? '' : undefined}
                   className={css(
                     {
                       zIndex: '1',
@@ -91,7 +99,7 @@ export function BottomTabs() {
                       display: 'flex',
                       outline: { base: '1px solid rgba(125, 125, 125, 0.25)', _dark: 'none' },
                     },
-                    !open ? { bg: { base: 'gray.300', _dark: 'gray.600' }, shadow: 'sm', rounded: 'md' } : {},
+                    !isOpen ? { bg: { base: 'gray.300', _dark: 'gray.600' }, shadow: 'sm', rounded: 'md' } : {},
                   )}
                 >
                   <SegmentControl />
@@ -109,7 +117,7 @@ export function BottomTabs() {
           </SegmentGroup>
 
           <panda.span
-            data-expanded={open ? '' : undefined}
+            data-expanded={isOpen ? '' : undefined}
             transform={{ _expanded: 'rotate(180deg)' }}
             transition="all .2s ease"
             color={{ _expanded: { _dark: 'primary' } }}
@@ -135,7 +143,8 @@ export function BottomTabs() {
 }
 
 export const OutputEditor = () => {
-  const { output } = useLightningContext()
+  const actor = useLightningContext()
+  const output = useSelector(actor, (state) => state.context.output)
   const theme = useTheme()
 
   return (

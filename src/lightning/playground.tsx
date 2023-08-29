@@ -1,32 +1,29 @@
 import { css as cssLang } from '@codemirror/lang-css'
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror'
-import { useEffect, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { css, cx } from '../../styled-system/css'
 import { Bleed, Center, Flex, FlexProps } from '../../styled-system/jsx'
 
-import { useAtomValue } from 'jotai'
-import * as postcss from 'postcss'
 import { ObjectInspector } from 'react-inspector'
 import { button, splitter } from '../../styled-system/recipes'
 import { BottomTabs, OutputEditor } from '../bottom-tabs'
 import { Splitter, SplitterPanel, SplitterResizeTrigger } from '../components/ui/splitter'
 import { useToast } from '../components/ui/toast/use-toast'
 import { useTheme } from '../vite-themes/provider'
-import { LightningContextProvider } from './context'
-import { lightningTransform } from './light-transform'
-import { activeActionTabAtom, withDetailsAtom } from './store'
-import { urlSaver } from '../lib/url-saver'
+import { LightningContextProvider, useLightningContext } from './context'
 
 import { Decoration } from '@codemirror/view'
 
-import { useSetAtom } from 'jotai'
+import { useActor, useSelector } from '@xstate/react'
 import { flex } from '../../styled-system/patterns'
-import { Switch } from '../components/ui/switch'
 import { highlightPlugin, highlighter } from '../codemirror/codemirror-highlight-plugin'
 import { lineNumberStartFromZeroPlugin } from '../codemirror/codemirror-line-number-from-zero-plugin'
 import { createPositionPlugin } from '../codemirror/codemirror-position-plugin'
+import { Switch } from '../components/ui/switch'
 import { printNodeLoc, printNodeWithDetails } from './node-print-utils'
-import { LightAstNode, LightVisitors, LightningTransformResult } from './types'
+import { playgroundMachine } from './playground-machine'
+import { sampleCss } from './sample-data'
+import { LightAstNode } from './types'
 
 const positionStyle = css({
   mt: 'auto',
@@ -38,7 +35,6 @@ const positionStyle = css({
   textAlign: 'center',
 })
 
-const defaultResult: LightningTransformResult = { nodes: new Set(), flatNodes: new Set(), css: '', source: {} as any }
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
 // TODO add linter
@@ -46,56 +42,35 @@ const defaultResult: LightningTransformResult = { nodes: new Set(), flatNodes: n
 // TODO click in input -> select AST node + display in inspector
 
 export function Playground() {
-  const [input, setInput] = useState(initialInput)
-  const [output, setOutput] = useState(defaultResult)
-  const [postcssRoot, setPostcssRoot] = useState<postcss.Root | undefined>()
-  const [selected, setSelected] = useState<LightAstNode | undefined>()
-  const [visitors, setVisitors] = useState<LightVisitors>({})
-
   const { toast } = useToast()
+  const [state, send, actor] = useActor(
+    playgroundMachine.provide({
+      actions: {
+        resetUiState: ({ context }) => {
+          // reset highlight marks on output change
+          const view = editorRef.current?.view
+          if (view) {
+            view.dispatch({ effects: highlighter.removeMarks(0, context.input.length) })
+          }
+        },
+        displayError: ({ event }) => {
+          if (event.type !== 'DisplayError') return
+          toast(event.params)
+        },
+      },
+    }),
+  )
 
-  const update = (input: string) => {
-    try {
-      const result = lightningTransform(input, { visitor: visitors })
-      setOutput(result)
-      const postcssResult = postcss.parse(input)
-      setPostcssRoot(postcssResult)
-      console.log(result, postcssResult)
-      urlSaver.setValue('input', input)
-
-      // reset selected on output change
-      if (result.css !== output.css) {
-        setSelected(undefined)
-
-        // reset highlight marks on output change
-        const view = editorRef.current?.view
-        if (view) {
-          view.dispatch({ effects: highlighter.removeMarks(0, input.length) })
-        }
-      }
-    } catch (err) {
-      console.error(err)
-      toast({
-        title: 'Error',
-        description: (err as Error)?.message,
-      })
-    }
-  }
-
-  // run transform on mount
-  useEffect(() => {
-    update(input)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visitors])
+  const { output } = state.context
 
   const theme = useTheme()
-  const actionTab = useAtomValue(activeActionTabAtom)
+  const actionTab = state.context.ui.activeInputTab
 
-  const editorRef = useRef<ReactCodeMirrorRef>(null)
+  const editorRef = useRef<ReactCodeMirrorRef>()
   const positionPluginRef = useRef<ReturnType<typeof createPositionPlugin>>()
 
   return (
-    <LightningContextProvider value={{ input, output, setInput, setOutput, visitors, setVisitors, update }}>
+    <LightningContextProvider value={actor}>
       <Splitter
         flexDirection="row"
         w="100%"
@@ -129,16 +104,17 @@ export function Playground() {
                 >
                   <div className={css({ pos: 'relative', minH: 0, overflow: 'auto', h: '100%' })}>
                     <CodeMirror
-                      ref={editorRef}
+                      ref={(ref) => {
+                        if (!ref) return
+                        editorRef.current = ref
+                        send({ type: 'Loaded' })
+                      }}
                       width="100%"
                       height="100%"
                       className={css({ flex: 1, minHeight: '0', maxH: '100%', h: '100%' })}
                       theme={theme.resolvedTheme === 'dark' ? 'dark' : 'light'}
-                      value={input}
-                      onChange={(value) => {
-                        setInput(value)
-                        return update(value ?? '')
-                      }}
+                      value={state.context.input}
+                      onChange={(value) => send({ type: 'ChangeInput', params: { value } })}
                       extensions={
                         [cssLang(), highlightPlugin, lineNumberStartFromZeroPlugin, positionPluginRef.current].filter(
                           Boolean,
@@ -150,10 +126,7 @@ export function Playground() {
 
                 <button
                   className={cx(button(), css({ flexShrink: 0 }))}
-                  onClick={() => {
-                    setInput(sample.mediaQueries)
-                    return update(sample.mediaQueries)
-                  }}
+                  onClick={() => send({ type: 'ChangeInput', params: { value: sampleCss.mediaQueries } })}
                 >
                   reset to sample
                 </button>
@@ -180,13 +153,13 @@ export function Playground() {
                   <span>LightningCSS AST</span>
                   <ShowDetails ml="auto" />
                 </div>
-                {Array.from(output.nodes).map((node, i) => (
+                {Array.from(state.context.output.nodes).map((node, i) => (
                   <NodeRow
                     key={i}
                     node={node}
-                    selected={selected}
+                    selected={state.context.selectedNode}
                     setSelected={(node) => {
-                      setSelected(node)
+                      send({ type: 'SelectNode', params: { node } })
 
                       const pos = node.pos
                       if (!pos) return
@@ -211,7 +184,7 @@ export function Playground() {
                           const endPos = output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column, false)
 
                           // Reset all marks
-                          view.dispatch({ effects: highlighter.removeMarks(0, input.length) })
+                          view.dispatch({ effects: highlighter.removeMarks(0, state.context.input.length) })
                           // Add new mark
                           view.dispatch({ effects: highlighter.addMarks.of([highlightMark.range(startPos, endPos)]) })
                         }
@@ -223,12 +196,15 @@ export function Playground() {
             </SplitterPanel>
             <SplitterResizeTrigger id="lightningcss:postcss" my="2" />
             <SplitterPanel id="postcss" border="none">
-              {postcssRoot ? (
+              {state.context.postcssRoot ? (
                 <Flex w="100%" h="100%" direction="column" overflow="auto">
                   <div className={flex({ fontWeight: 'bold' })}>
                     <span>PostCSS root</span>
                   </div>
-                  <InspectorPanel data={postcssRoot.toJSON()} expandPaths={['$', '$.nodes', '$.nodes.*']} />
+                  <InspectorPanel
+                    data={state.context.postcssRoot.toJSON()}
+                    expandPaths={['$', '$.nodes', '$.nodes.*']}
+                  />
                 </Flex>
               ) : null}
             </SplitterPanel>
@@ -248,8 +224,8 @@ export function Playground() {
           >
             <SplitterPanel id="json">
               {/* TODO add AST view ? */}
-              {selected ? (
-                <InspectorPanel data={selected} expandPaths={lightningCssExpandedPaths} />
+              {state.context.selectedNode ? (
+                <InspectorPanel data={state.context.selectedNode} expandPaths={lightningCssExpandedPaths} />
               ) : (
                 <Center fontSize="xl" p="4" textAlign="center" fontWeight="bold">
                   Select a LightningCSS AST node to display it...
@@ -268,11 +244,11 @@ export function Playground() {
 }
 
 const ShowDetails = (props?: FlexProps) => {
-  const setWithDetails = useSetAtom(withDetailsAtom)
+  const actor = useLightningContext()
 
   return (
     <Flex {...(props as FlexProps)} alignItems="center" gap="2">
-      <Switch id="show-details" color="red" onClick={() => setWithDetails((c) => !c)} />
+      <Switch id="show-details" color="red" onClick={() => actor.send({ type: 'ToggleTreeDetails' })} />
       <label htmlFor="show-details">Show details</label>
     </Flex>
   )
@@ -350,7 +326,8 @@ const NodeRow = ({
   setSelected: (node: LightAstNode) => void
   depth?: number
 }) => {
-  const withDetails = useAtomValue(withDetailsAtom)
+  const actor = useLightningContext()
+  const withDetails = useSelector(actor, (state) => state.context.ui.withTreeDetails)
 
   return (
     <Flex direction="column" mt={node.parent ? undefined : '1'}>
@@ -391,29 +368,3 @@ const NodeRow = ({
     </Flex>
   )
 }
-
-const sample = {
-  mediaQueries: `@media (min-width: 990px) {
-  .bg {
-    background-color: red;
-  }
-}
-
-.bg {
-  background-color: green;
-}
-
-@media (max-width: 1290px) {
-  .bg {
-    background-color: blue;
-  }
-}
-
-@media (min-width: 640px) {
-  .bg {
-    background-color: yellow;
-  }
-}`,
-}
-
-const initialInput = urlSaver.getValue('input') || sample.mediaQueries
