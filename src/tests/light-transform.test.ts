@@ -33,7 +33,9 @@ test('lightningTransform - lightningcss.dev sample', async () => {
     Array.from(result.nodes).map((n) =>
       Object.assign(pick(n, ['type', 'pos', 'depth', 'text']), {
         prev: n.prev?.type,
-        next: n.next?.type,
+        next: n.prev?.type,
+        prevSibling: n.prevSibling?.type,
+        nextSibling: n.nextSibling?.type,
         parent: n.parent?.type,
         children: n.children.map((c) => c.type),
       }),
@@ -53,7 +55,8 @@ test('lightningTransform - lightningcss.dev sample', async () => {
           "Token",
         ],
         "depth": 0,
-        "next": "Rule",
+        "next": undefined,
+        "nextSibling": "Rule",
         "parent": undefined,
         "pos": {
           "end": {
@@ -67,6 +70,7 @@ test('lightningTransform - lightningcss.dev sample', async () => {
           },
         },
         "prev": undefined,
+        "prevSibling": undefined,
         "text": "@custom-media --modern (color), (hover);
 
       ",
@@ -85,7 +89,8 @@ test('lightningTransform - lightningcss.dev sample', async () => {
           "Rule",
         ],
         "depth": 0,
-        "next": "Rule",
+        "next": "Token",
+        "nextSibling": "Rule",
         "parent": undefined,
         "pos": {
           "end": {
@@ -98,7 +103,8 @@ test('lightningTransform - lightningcss.dev sample', async () => {
             "source_index": 0,
           },
         },
-        "prev": "Rule",
+        "prev": "Token",
+        "prevSibling": "Rule",
         "text": ".foo {
           background: yellow;
 
@@ -124,7 +130,8 @@ test('lightningTransform - lightningcss.dev sample', async () => {
           "Rule",
         ],
         "depth": 0,
-        "next": undefined,
+        "next": "Color",
+        "nextSibling": undefined,
         "parent": undefined,
         "pos": {
           "end": {
@@ -137,7 +144,8 @@ test('lightningTransform - lightningcss.dev sample', async () => {
             "source_index": 0,
           },
         },
-        "prev": "Rule",
+        "prev": "Color",
+        "prevSibling": "Rule",
         "text": "@media (--modern) and (width > 1024px) {
           .a {
             color: green;
@@ -179,6 +187,8 @@ test('lightningTransform - playground sample', async () => {
       Object.assign(pick(n, ['type', 'pos', 'depth', 'text']), {
         prev: n.prev?.type,
         next: n.next?.type,
+        prevSibling: n.prevSibling?.type,
+        nextSibling: n.nextSibling?.type,
         parent: n.parent?.type,
         children: n.children.map((c) => c.type),
       }),
@@ -191,7 +201,8 @@ test('lightningTransform - playground sample', async () => {
           "Rule",
         ],
         "depth": 0,
-        "next": "Rule",
+        "next": "MediaQuery",
+        "nextSibling": "Rule",
         "parent": undefined,
         "pos": {
           "end": {
@@ -205,6 +216,7 @@ test('lightningTransform - playground sample', async () => {
           },
         },
         "prev": undefined,
+        "prevSibling": undefined,
         "text": "@media (min-width: 990px) {
         .bg {
           background-color: red;
@@ -220,7 +232,8 @@ test('lightningTransform - playground sample', async () => {
           "Declaration",
         ],
         "depth": 0,
-        "next": "Rule",
+        "next": "Selector",
+        "nextSibling": "Rule",
         "parent": undefined,
         "pos": {
           "end": {
@@ -233,7 +246,8 @@ test('lightningTransform - playground sample', async () => {
             "source_index": 0,
           },
         },
-        "prev": "Rule",
+        "prev": "Color",
+        "prevSibling": "Rule",
         "text": ".bg {
         background-color: green;
       }
@@ -247,7 +261,8 @@ test('lightningTransform - playground sample', async () => {
           "Rule",
         ],
         "depth": 0,
-        "next": "Rule",
+        "next": "MediaQuery",
+        "nextSibling": "Rule",
         "parent": undefined,
         "pos": {
           "end": {
@@ -260,7 +275,8 @@ test('lightningTransform - playground sample', async () => {
             "source_index": 0,
           },
         },
-        "prev": "Rule",
+        "prev": "Color",
+        "prevSibling": "Rule",
         "text": "@media (max-width: 1290px) {
         .bg {
           background-color: blue;
@@ -276,7 +292,8 @@ test('lightningTransform - playground sample', async () => {
           "Rule",
         ],
         "depth": 0,
-        "next": undefined,
+        "next": "MediaQuery",
+        "nextSibling": undefined,
         "parent": undefined,
         "pos": {
           "end": {
@@ -289,7 +306,8 @@ test('lightningTransform - playground sample', async () => {
             "source_index": 0,
           },
         },
-        "prev": "Rule",
+        "prev": "Color",
+        "prevSibling": "Rule",
         "text": "@media (min-width: 640px) {
         .bg {
           background-color: yellow;

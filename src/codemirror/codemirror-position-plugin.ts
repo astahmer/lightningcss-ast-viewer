@@ -1,4 +1,4 @@
-import { EditorView, ViewPlugin, WidgetType } from '@codemirror/view'
+import { EditorView, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view'
 
 class PositionWidget extends WidgetType {
   root: HTMLElement
@@ -23,7 +23,17 @@ class PositionWidget extends WidgetType {
   }
 }
 
-export const createPositionPlugin = (container: HTMLElement, className: string, isZeroBased = false) =>
+export const createPositionPlugin = ({
+  container,
+  className,
+  isZeroBased,
+  onUpdate,
+}: {
+  container: HTMLElement
+  className: string
+  isZeroBased?: boolean
+  onUpdate?: (view: ViewUpdate) => void
+}) =>
   ViewPlugin.define((view) => {
     const widget = new PositionWidget(isZeroBased)
     if (className) {
@@ -38,6 +48,7 @@ export const createPositionPlugin = (container: HTMLElement, className: string, 
       update(update) {
         if (update.selectionSet || update.docChanged) {
           widget.toDOM(update.view)
+          onUpdate?.(update)
         }
       },
       destroy() {

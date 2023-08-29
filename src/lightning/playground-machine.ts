@@ -4,12 +4,13 @@ import { urlSaver } from '../lib/url-saver'
 import { lightningTransform } from './light-transform'
 import { LightAstNode, LightVisitors, LightningTransformResult } from './types'
 import { sampleCss } from './sample-data'
+import { LightningSourceText } from './light-source-text'
 
 const defaultResult: LightningTransformResult = {
   nodes: new Set(),
-  flatNodes: new Set(),
+  visiteds: new Set(),
   css: '',
-  source: {} as any,
+  source: new LightningSourceText(''),
 }
 
 const initialCtx = {

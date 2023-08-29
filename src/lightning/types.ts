@@ -1,5 +1,5 @@
 import * as light from 'lightningcss-wasm'
-import { SourceText } from '../lib/source-text'
+import { LightningSourceText } from './light-source-text'
 
 type AngleNode = { type: 'Angle'; data: light.Angle }
 type ColorNode = { type: 'Color'; data: light.CssColor }
@@ -57,8 +57,12 @@ export type LightAstNode = (
   | VariableNode
   | VariableExitNode
 ) & {
+  //
   children: LightAstNode[]
   parent?: LightAstNode
+  prevSibling?: LightAstNode
+  nextSibling?: LightAstNode
+  //
   prev?: LightAstNode
   next?: LightAstNode
   pos?: { start: light.Location; end: light.Location }
@@ -70,7 +74,7 @@ export type VisitorParam = LightAstNode['data']
 
 export type LightningTransformResult = {
   nodes: Set<LightAstNode>
-  flatNodes: Set<VisitorParam>
+  visiteds: Set<VisitorParam>
   css: string
-  source: SourceText
+  source: LightningSourceText
 }

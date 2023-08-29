@@ -1,8 +1,8 @@
 import * as light from 'lightningcss-wasm'
 import { composeVisitors } from './compose-visitors'
 import { LightAstNode, LightningTransformResult, VisitorParam } from './types'
-import { SourceText } from '../lib/source-text'
 import { applyPrevCharacterToLocation, getNodeLocation } from './node-location'
+import { LightningSourceText } from './light-source-text'
 
 const enc = new TextEncoder()
 const dec = new TextDecoder()
@@ -16,10 +16,11 @@ export const lightningTransform = (
   options?: Omit<light.TransformOptions<light.CustomAtRules>, 'code' | 'filename'>,
 ) => {
   const nodes = new Set() as Set<LightAstNode>
-  const flatNodes = new Set() as Set<VisitorParam>
+  const visiteds = new Set() as Set<VisitorParam>
 
   let current: LightAstNode | undefined
   let currentRoot: LightAstNode | undefined
+  let prev: LightAstNode | undefined
   let depth = 0
   const prevWithLocationAtDepth = new Map<number, LightAstNode>()
 
@@ -46,7 +47,15 @@ export const lightningTransform = (
   const visitNode = (node: LightAstNode) => {
     node.depth = depth
     isDebug && console.log(depth, `[visit] ${node.type}`, { stack, current })
-    flatNodes.add(node.data)
+
+    if (prev) {
+      node.prev = prev
+      prev.next = node
+    }
+    prev = node
+
+    source.add(node)
+    visiteds.add(node.data)
 
     const location = getNodeLocation(node)
     if (location) {
@@ -78,10 +87,10 @@ export const lightningTransform = (
 
     // is child
     if (current && (current.depth ?? 0) < node.depth) {
-      const prev = current.children[current.children.length - 1]
-      if (prev) {
-        node.prev = prev
-        node.prev.next = node
+      const prevSibling = current.children[current.children.length - 1]
+      if (prevSibling) {
+        node.prevSibling = prevSibling
+        node.prevSibling.nextSibling = node
       }
 
       current.children.push(node)
@@ -91,8 +100,8 @@ export const lightningTransform = (
 
     // is a root node (doesn't have a parent)
     if (currentRoot) {
-      currentRoot.next = node
-      node.prev = currentRoot
+      currentRoot.nextSibling = node
+      node.prevSibling = currentRoot
     }
 
     nodes.add(node)
@@ -237,27 +246,5 @@ export const lightningTransform = (
     prevNode.text = source.extractNodeRange(prevNode)
   })
 
-  return { nodes, flatNodes, css: dec.decode(res.code), source } as LightningTransformResult
-}
-
-class LightningSourceText extends SourceText {
-  private _textByNode = new WeakMap<LightAstNode, string>()
-
-  constructor(text: string) {
-    super(text)
-  }
-
-  extractNodeRange(node: LightAstNode) {
-    if (!node.pos) return ''
-    if (this._textByNode.has(node)) return this._textByNode.get(node)!
-
-    const text = this.extractRange(
-      node.pos.start.line,
-      node.pos.start.column - 1,
-      node.pos.end.line,
-      node.pos.end.column - 1,
-    )
-    this._textByNode.set(node, text)
-    return text
-  }
+  return { nodes, visiteds, css: dec.decode(res.code), source } as LightningTransformResult
 }

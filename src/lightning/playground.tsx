@@ -11,7 +11,7 @@ import { useToast } from '../components/ui/toast/use-toast'
 import { useTheme } from '../vite-themes/provider'
 import { LightningContextProvider, useLightningContext } from './context'
 
-import { Decoration } from '@codemirror/view'
+import { Decoration, EditorView } from '@codemirror/view'
 
 import { useActor, useSelector } from '@xstate/react'
 import { flex } from '../../styled-system/patterns'
@@ -35,10 +35,19 @@ const positionStyle = css({
   textAlign: 'center',
 })
 
+const highlightMark = Decoration.mark({
+  attributes: {
+    class: cx(
+      // _dark #6f7163
+      css({ backgroundColor: { base: '#ffd991', _dark: 'black' } }),
+      'lightningcss-highlight',
+    ),
+  },
+})
+
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
 // TODO add linter
-// TODO click in input -> select AST node + display in inspector
 
 export function Playground() {
   const { toast } = useToast()
@@ -59,6 +68,21 @@ export function Playground() {
       },
     }),
   )
+
+  const onSelectNode = (node: LightAstNode, view: EditorView) => {
+    if (!node || !view) return
+
+    const pos = node.pos
+    if (!pos) return
+
+    const startPos = output.source.getPosAtLineAndColumn(pos.start.line, pos.start.column - 1, false)
+    const endPos = output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column, false)
+
+    // Reset all marks
+    view.dispatch({ effects: highlighter.removeMarks(0, state.context.input.length) })
+    // Add new mark
+    view.dispatch({ effects: highlighter.addMarks.of([highlightMark.range(startPos, endPos)]) })
+  }
 
   const { output } = state.context
 
@@ -98,7 +122,32 @@ export function Playground() {
                   minH="0"
                   h="100%"
                   ref={(ref) => {
-                    if (ref) positionPluginRef.current = createPositionPlugin(ref, positionStyle, true)
+                    if (ref)
+                      positionPluginRef.current = createPositionPlugin({
+                        container: ref,
+                        className: positionStyle,
+                        isZeroBased: true,
+                        onUpdate: (update) => {
+                          const view = update.view
+                          const pos = view.state.selection.main.head
+                          const line = view.state.doc.lineAt(pos)
+                          const column = pos - line.from
+
+                          const node = output.source.findNodeAtLocation(line.number - 1, column)
+                          if (!node) {
+                            // codemirror Calls to EditorView.update are not allowed while an update is in progress
+                            setTimeout(() => {
+                              // Reset all marks
+                              view.dispatch({ effects: highlighter.removeMarks(0, state.context.input.length) })
+                            }, 0)
+                            return
+                          }
+
+                          send({ type: 'SelectNode', params: { node } })
+                          // // codemirror Calls to EditorView.update are not allowed while an update is in progress
+                          setTimeout(() => onSelectNode(node, view), 0)
+                        },
+                      })
                   }}
                 >
                   <div className={css({ pos: 'relative', minH: 0, overflow: 'auto', h: '100%' })}>
@@ -159,35 +208,7 @@ export function Playground() {
                     selected={state.context.selectedNode}
                     setSelected={(node) => {
                       send({ type: 'SelectNode', params: { node } })
-
-                      const pos = node.pos
-                      if (!pos) return
-
-                      if (editorRef.current) {
-                        const highlightMark = Decoration.mark({
-                          attributes: {
-                            class: cx(
-                              // _dark #6f7163
-                              css({ backgroundColor: { base: '#ffd991', _dark: 'black' } }),
-                              'lightningcss-highlight',
-                            ),
-                          },
-                        })
-                        const view = editorRef.current?.view
-                        if (view) {
-                          const startPos = output.source.getPosAtLineAndColumn(
-                            pos.start.line,
-                            pos.start.column - 1,
-                            false,
-                          )
-                          const endPos = output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column, false)
-
-                          // Reset all marks
-                          view.dispatch({ effects: highlighter.removeMarks(0, state.context.input.length) })
-                          // Add new mark
-                          view.dispatch({ effects: highlighter.addMarks.of([highlightMark.range(startPos, endPos)]) })
-                        }
-                      }
+                      editorRef.current?.view && onSelectNode(node, editorRef.current.view)
                     }}
                   />
                 ))}
