@@ -2,7 +2,7 @@ import { css as cssLang } from '@codemirror/lang-css'
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import { useRef } from 'react'
 import { css, cx } from '../../styled-system/css'
-import { Bleed, Center, Flex, FlexProps } from '../../styled-system/jsx'
+import { Bleed, Center, Flex, FlexProps, Spacer } from '../../styled-system/jsx'
 
 import { button, splitter } from '../../styled-system/recipes'
 import { BottomTabs, OutputEditor } from '../bottom-tabs'
@@ -141,7 +141,7 @@ export function Playground() {
           <Splitter
             size={[
               { id: 'lightningcss', size: 50, minSize: 3 },
-              { id: 'postcss', size: 50, minSize: 3 },
+              { id: 'postcss', size: 50, minSize: 5 },
             ]}
             orientation="vertical"
             className={splitter().root}
@@ -194,17 +194,20 @@ export function Playground() {
                 ))}
               </Flex>
             </SplitterPanel>
+            <Spacer my="2" />
             <SplitterResizeTrigger id="lightningcss:postcss" my="2" />
             <SplitterPanel id="postcss" border="none">
               {state.context.postcssRoot ? (
-                <Flex w="100%" h="100%" direction="column" overflow="auto">
-                  <div className={flex({ fontWeight: 'bold' })}>
-                    <span>PostCSS root</span>
-                  </div>
+                <Flex w="100%" h="100%" overflow="auto">
                   <InspectorPanel
+                    css={{ pt: 4 }}
                     data={state.context.postcssRoot.toJSON()}
                     expandPaths={['$', '$.nodes', '$.nodes.*']}
-                  />
+                  >
+                    <div className={flex({ mr: 'auto', fontWeight: 'bold' })}>
+                      <span>PostCSS</span>
+                    </div>
+                  </InspectorPanel>
                 </Flex>
               ) : null}
             </SplitterPanel>
@@ -225,7 +228,16 @@ export function Playground() {
             <SplitterPanel id="json" border="none">
               {/* TODO add AST view ? */}
               {state.context.selectedNode ? (
-                <InspectorPanel data={state.context.selectedNode} expandPaths={lightningCssExpandedPaths} />
+                <InspectorPanel
+                  css={{ pt: 4 }}
+                  tabsProps={{ px: 4 }}
+                  data={state.context.selectedNode}
+                  expandPaths={lightningCssExpandedPaths}
+                >
+                  <div className={flex({ mr: 'auto', fontWeight: 'bold' })}>
+                    <span>{printNodeWithDetails(state.context.selectedNode)}</span>
+                  </div>
+                </InspectorPanel>
               ) : (
                 <Center fontSize="xl" p="4" textAlign="center" fontWeight="bold">
                   Select a LightningCSS AST node to display it...
@@ -236,8 +248,7 @@ export function Playground() {
             <SplitterPanel
               id="output"
               border="none"
-              minH={actionTab === 'output' ? 'unset' : '33'}
-              maxH={actionTab === 'output' ? '0' : 'unset'}
+              maxH={state.context.ui.isInputBottomPanelOpen && actionTab === 'output' ? '0' : 'unset'}
             >
               <OutputEditor />
             </SplitterPanel>

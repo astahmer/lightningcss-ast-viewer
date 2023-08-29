@@ -1,5 +1,5 @@
-import { splitterRecipe } from './splitter.recipe'
+// import { splitterRecipe } from './splitter.recipe'
 
 export const recipes = {
-  splitter: splitterRecipe,
+  // splitter: splitterRecipe,
 }
