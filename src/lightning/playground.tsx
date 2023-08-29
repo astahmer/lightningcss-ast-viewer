@@ -38,7 +38,6 @@ const positionStyle = css({
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
 // TODO add linter
-// TODO display error in output or inspector
 // TODO click in input -> select AST node + display in inspector
 
 export function Playground() {
@@ -226,7 +225,11 @@ export function Playground() {
           >
             <SplitterPanel id="json" border="none">
               {/* TODO add AST view ? */}
-              {state.context.selectedNode ? (
+              {state.context.error ? (
+                <Center fontSize="lg" p="4" textAlign="left" fontWeight="bold" color="red.400">
+                  {state.context.error.message}
+                </Center>
+              ) : state.context.selectedNode ? (
                 <InspectorPanel
                   css={{ pt: 4 }}
                   tabsProps={{ px: 4 }}
@@ -239,7 +242,7 @@ export function Playground() {
                 </InspectorPanel>
               ) : (
                 <Center fontSize="xl" p="4" textAlign="center" fontWeight="bold">
-                  Select a LightningCSS AST node to display it...
+                  Select a LightningCSS AST node to inspect it...
                 </Center>
               )}
             </SplitterPanel>

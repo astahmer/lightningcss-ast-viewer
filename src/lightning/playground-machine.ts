@@ -18,6 +18,7 @@ const initialCtx = {
   visitors: {} as LightVisitors,
   postcssRoot: undefined as postcss.Root | undefined,
   selectedNode: undefined as LightAstNode | undefined,
+  error: undefined as Error | undefined,
   ui: {
     withTreeDetails: false,
     activeInputTab: 'none',
@@ -116,7 +117,7 @@ export const playgroundMachine = createMachine(
             self.send({ type: 'ResetUiState' })
           }
 
-          return { ...context, output, postcssRoot }
+          return { ...context, error: undefined, output, postcssRoot }
         } catch (err) {
           console.error(err)
           self.send({
@@ -127,7 +128,7 @@ export const playgroundMachine = createMachine(
             },
           })
 
-          return context
+          return { ...context, error: err as Error }
         }
       }),
     },
