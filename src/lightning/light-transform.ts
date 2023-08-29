@@ -31,18 +31,20 @@ export const lightningTransform = (
     stack.push(node)
     depth++
     paths.push(node.type)
-    isDebug && console.log(depth, `[enter] ${node.type}`, { stack, current, depth }, paths)
+    isDebug && console.log(depth, `[enter] ${node.type}`, { stack, current })
     current = node
   }
 
   const onExitContainer = (type: LightAstNode['type']) => {
-    isDebug && console.log(depth, `[exit] ${type}`, { stack, current })
-    current = stack.pop()
+    stack.pop()
+    current = stack[stack.length - 1]
     paths.pop()
     depth--
+    isDebug && console.log(depth, `[exit] ${type}`, { stack, current })
   }
 
   const visitNode = (node: LightAstNode) => {
+    node.depth = depth
     isDebug && console.log(depth, `[visit] ${node.type}`, { stack, current })
     flatNodes.add(node.data)
 
@@ -79,7 +81,7 @@ export const lightningTransform = (
     }
 
     // is child
-    if (current && current !== node) {
+    if (current && (current.depth ?? 0) < node.depth) {
       const prev = current.children[current.children.length - 1]
       if (prev) {
         node.prev = prev
@@ -133,7 +135,6 @@ export const lightningTransform = (
         },
         DeclarationExit(property) {
           onExitContainer('DeclarationExit')
-          current = stack.pop()
           return property
         },
         EnvironmentVariable(env) {
@@ -143,7 +144,6 @@ export const lightningTransform = (
         },
         EnvironmentVariableExit(_env) {
           onExitContainer('EnvironmentVariableExit')
-          current = stack.pop()
           return
         },
         Function(fn) {
@@ -153,7 +153,6 @@ export const lightningTransform = (
         },
         FunctionExit(_fn) {
           onExitContainer('FunctionExit')
-          current = stack.pop()
           return
         },
         Image(image) {
@@ -163,7 +162,6 @@ export const lightningTransform = (
         },
         ImageExit(image) {
           onExitContainer('ImageExit')
-          current = stack.pop()
           return image
         },
         MediaQuery(query) {
@@ -173,7 +171,6 @@ export const lightningTransform = (
         },
         MediaQueryExit(query) {
           onExitContainer('MediaQueryExit')
-          current = stack.pop()
           return query
         },
         Ratio(ratio) {
@@ -191,7 +188,6 @@ export const lightningTransform = (
         },
         RuleExit(rule) {
           onExitContainer('RuleExit')
-          current = stack.pop()
           return rule
         },
         Selector(selector) {
@@ -206,7 +202,6 @@ export const lightningTransform = (
         },
         SupportsConditionExit(condition) {
           onExitContainer('SupportsConditionExit')
-          current = stack.pop()
           return condition
         },
         Time(time) {
@@ -228,7 +223,6 @@ export const lightningTransform = (
         },
         VariableExit(_variable) {
           onExitContainer('VariableExit')
-          current = stack.pop()
           return
         },
       },

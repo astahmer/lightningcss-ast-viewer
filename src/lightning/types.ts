@@ -63,6 +63,7 @@ export type LightAstNode = (
   next?: LightAstNode
   pos?: { start: light.Location; end: light.Location }
   text?: string
+  depth?: number
 }
 
 export type VisitorParam = LightAstNode['data']
