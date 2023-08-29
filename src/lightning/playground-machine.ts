@@ -79,12 +79,16 @@ export const playgroundMachine = createMachine(
       setActiveInputTab: assign({
         ui: ({ context, event }) => ({
           ...context.ui,
-          activeInputTab: event.type === 'SetActiveInputTab' ? event.params.tab : context.ui.activeInputTab,
+          activeInputTab:
+            (event.type === 'SetActiveInputTab' ? event.params.tab : context.ui.activeInputTab) ?? 'output',
         }),
       }),
       toggleBottomPanel: assign({
-        ui: ({ context }) => {
-          const activeInputTab = context.ui.activeInputTab === 'none' ? 'output' : context.ui.activeInputTab
+        ui: ({ context, event }) => {
+          let activeInputTab = context.ui.activeInputTab
+          if (event.type === 'ToggleBottomPanel' && context.ui.activeInputTab === 'none') {
+            activeInputTab = 'output'
+          }
 
           return {
             ...context.ui,

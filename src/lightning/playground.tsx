@@ -4,7 +4,6 @@ import { useRef } from 'react'
 import { css, cx } from '../../styled-system/css'
 import { Bleed, Center, Flex, FlexProps } from '../../styled-system/jsx'
 
-import { ObjectInspector } from 'react-inspector'
 import { button, splitter } from '../../styled-system/recipes'
 import { BottomTabs, OutputEditor } from '../bottom-tabs'
 import { Splitter, SplitterPanel, SplitterResizeTrigger } from '../components/ui/splitter'
@@ -20,6 +19,7 @@ import { highlightPlugin, highlighter } from '../codemirror/codemirror-highlight
 import { lineNumberStartFromZeroPlugin } from '../codemirror/codemirror-line-number-from-zero-plugin'
 import { createPositionPlugin } from '../codemirror/codemirror-position-plugin'
 import { Switch } from '../components/ui/switch'
+import { InspectorPanel } from './inspector-panel'
 import { printNodeLoc, printNodeWithDetails } from './node-print-utils'
 import { playgroundMachine } from './playground-machine'
 import { sampleCss } from './sample-data'
@@ -218,11 +218,11 @@ export function Playground() {
             height="100%"
             overflow="hidden"
             size={[
-              { id: 'json', size: 66 },
+              { id: 'json', size: 66, minSize: 10 },
               { id: 'output', size: 33 },
             ]}
           >
-            <SplitterPanel id="json">
+            <SplitterPanel id="json" border="none">
               {/* TODO add AST view ? */}
               {state.context.selectedNode ? (
                 <InspectorPanel data={state.context.selectedNode} expandPaths={lightningCssExpandedPaths} />
@@ -232,8 +232,13 @@ export function Playground() {
                 </Center>
               )}
             </SplitterPanel>
-            {/* TODO add resize trigger + rm border */}
-            <SplitterPanel id="output" display={actionTab === 'output' ? 'none' : 'unset'}>
+            <SplitterResizeTrigger id="json:output" />
+            <SplitterPanel
+              id="output"
+              border="none"
+              minH={actionTab === 'output' ? 'unset' : '33'}
+              maxH={actionTab === 'output' ? '0' : 'unset'}
+            >
               <OutputEditor />
             </SplitterPanel>
           </Splitter>
@@ -269,51 +274,6 @@ const lightningCssExpandedPaths = [
   '$.data.*.*.loc',
   '$.data.*.*.loc.*',
 ]
-
-// TODO add Tabs: Inspector (or name prop) / JSON tab = raw json file, no inspector
-const InspectorPanel = ({ data, expandPaths }: { data: unknown | undefined; expandPaths?: string[] }) => {
-  const theme = useTheme()
-
-  return (
-    <div
-      className={css({
-        visibility: data ? 'visible' : 'hidden',
-        display: 'flex',
-        maxHeight: '100%',
-        overflow: 'hidden',
-        w: '100%',
-        h: '100%',
-      })}
-    >
-      <div
-        className={css({
-          height: '100%',
-          width: '100%',
-          overflow: 'auto',
-          '& > ol': {
-            display: 'flex',
-            height: '100%',
-            width: '100%',
-            '& > li': {
-              width: '100%',
-              px: '5!',
-              py: '5!',
-            },
-            '& span': {
-              fontSize: 'xs',
-            },
-          },
-        })}
-      >
-        <ObjectInspector
-          theme={theme.resolvedTheme === 'dark' ? 'chromeDark' : undefined}
-          data={data}
-          expandPaths={expandPaths}
-        />
-      </div>
-    </div>
-  )
-}
 
 const NodeRow = ({
   node,

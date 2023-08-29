@@ -125,7 +125,11 @@ export function BottomTabs() {
             <ChevronUpIcon />
           </panda.span>
         </Flex>
-        {activeTab === 'output' && <OutputEditor />}
+        {activeTab === 'output' && (
+          // <div className={css({ flex: 1, minHeight: '0', height: '100%', overflow: 'auto' })}>
+          <OutputEditor />
+          // </div>
+        )}
         {activeTab === 'visitors' && (
           <CodeMirror
             width="100%"
@@ -176,6 +180,7 @@ const visitorSample =
 
 const actionsPanel = cva({
   base: {
+    display: 'flex',
     flexDir: 'column',
     minH: '12',
     background: { _dark: '#262626' },

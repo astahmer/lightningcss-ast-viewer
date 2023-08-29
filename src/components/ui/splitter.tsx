@@ -17,3 +17,6 @@ export const Splitter = Object.assign(SplitterRoot, {
   Panel: SplitterPanel,
   ResizeTrigger: SplitterResizeTrigger,
 })
+
+// eslint-disable-next-line @typescript-eslint/ban-types
+export type SplitterApi = Parameters<Extract<Ark.SplitterProps['children'], Function>>[0]
