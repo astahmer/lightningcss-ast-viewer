@@ -2,7 +2,7 @@ import { css as cssLang } from '@codemirror/lang-css'
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import { useRef, useState } from 'react'
 import { css, cx } from '../../styled-system/css'
-import { Bleed, Center, Flex, FlexProps, Spacer } from '../../styled-system/jsx'
+import { Bleed, Center, Flex, FlexProps } from '../../styled-system/jsx'
 
 import { button, splitter } from '../../styled-system/recipes'
 import { BottomTabs, OutputEditor } from '../bottom-tabs'
@@ -194,7 +194,6 @@ export function Playground() {
                 ))}
               </Flex>
             </SplitterPanel>
-            <Spacer my="2" />
             <SplitterResizeTrigger id="lightningcss:postcss" my="2" />
             <SplitterPanel id="postcss" border="none">
               {state.context.postcssRoot ? (
@@ -250,7 +249,12 @@ export function Playground() {
               border="none"
               maxH={state.context.ui.isInputBottomPanelOpen && actionTab === 'output' ? '0' : 'unset'}
             >
-              <OutputEditor />
+              <Flex direction="column" w="100%" h="100%" overflow="auto">
+                <div className={flex({ ml: '4', py: '2', mr: 'auto', fontWeight: 'bold' })}>
+                  <span>Output</span>
+                </div>
+                <OutputEditor />
+              </Flex>
             </SplitterPanel>
           </Splitter>
         </SplitterPanel>
