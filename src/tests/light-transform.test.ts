@@ -2,9 +2,10 @@ import { expect, test } from 'vitest'
 
 import { lightningTransform } from '../lightning/light-transform'
 import { pick } from 'pastable'
+import outdent from 'outdent'
 
 test('lightningTransform - lightningcss.dev sample', async () => {
-  const code = `@custom-media --modern (color), (hover);
+  const code = outdent`@custom-media --modern (color), (hover);
 
     .foo {
       background: yellow;
@@ -60,8 +61,8 @@ test('lightningTransform - lightningcss.dev sample', async () => {
         "parent": undefined,
         "pos": {
           "end": {
-            "column": 3,
-            "line": 2,
+            "column": 0,
+            "line": 1,
           },
           "start": {
             "column": 1,
@@ -72,8 +73,7 @@ test('lightningTransform - lightningcss.dev sample', async () => {
         "prev": undefined,
         "prevSibling": undefined,
         "text": "@custom-media --modern (color), (hover);
-
-      ",
+    ",
         "type": "Rule",
       },
       {
@@ -94,11 +94,11 @@ test('lightningTransform - lightningcss.dev sample', async () => {
         "parent": undefined,
         "pos": {
           "end": {
-            "column": 3,
-            "line": 18,
+            "column": 0,
+            "line": 17,
           },
           "start": {
-            "column": 5,
+            "column": 1,
             "line": 2,
             "source_index": 0,
           },
@@ -106,22 +106,21 @@ test('lightningTransform - lightningcss.dev sample', async () => {
         "prev": "Token",
         "prevSibling": "Rule",
         "text": ".foo {
-          background: yellow;
+      background: yellow;
 
-          -webkit-border-radius: 2px;
-          -moz-border-radius: 2px;
-          border-radius: 2px;
+      -webkit-border-radius: 2px;
+      -moz-border-radius: 2px;
+      border-radius: 2px;
 
-          -webkit-transition: background 200ms;
-          -moz-transition: background 200ms;
-          transition: background 200ms;
+      -webkit-transition: background 200ms;
+      -moz-transition: background 200ms;
+      transition: background 200ms;
 
-          &.bar {
-            color: green;
-          }
-        }
-
-      ",
+      &.bar {
+        color: green;
+      }
+    }
+    ",
         "type": "Rule",
       },
       {
@@ -135,11 +134,11 @@ test('lightningTransform - lightningcss.dev sample', async () => {
         "parent": undefined,
         "pos": {
           "end": {
-            "column": 5,
+            "column": 1,
             "line": 22,
           },
           "start": {
-            "column": 5,
+            "column": 1,
             "line": 18,
             "source_index": 0,
           },
@@ -147,10 +146,10 @@ test('lightningTransform - lightningcss.dev sample', async () => {
         "prev": "Color",
         "prevSibling": "Rule",
         "text": "@media (--modern) and (width > 1024px) {
-          .a {
-            color: green;
-          }
-        ",
+      .a {
+        color: green;
+      }
+    ",
         "type": "Rule",
       },
     ]
@@ -159,27 +158,26 @@ test('lightningTransform - lightningcss.dev sample', async () => {
 
 test('lightningTransform - playground sample', async () => {
   const code = `@media (min-width: 990px) {
-    .bg {
-      background-color: red;
-    }
-  }
-
   .bg {
-    background-color: green;
+    background-color: red;
   }
+}
 
-  @media (max-width: 1290px) {
-    .bg {
-      background-color: blue;
-    }
-  }
+.bg {
+  background-color: green;
+}
 
-  @media (min-width: 640px) {
-    .bg {
-      background-color: yellow;
-    }
+@media (max-width: 1290px) {
+  .bg {
+    background-color: blue;
   }
-  `
+}
+
+@media (min-width: 640px) {
+  .bg {
+    background-color: yellow;
+  }
+}`
 
   const result = lightningTransform(code)
   expect(
@@ -206,8 +204,8 @@ test('lightningTransform - playground sample', async () => {
         "parent": undefined,
         "pos": {
           "end": {
-            "column": 1,
-            "line": 6,
+            "column": 0,
+            "line": 5,
           },
           "start": {
             "column": 1,
@@ -218,11 +216,10 @@ test('lightningTransform - playground sample', async () => {
         "prev": undefined,
         "prevSibling": undefined,
         "text": "@media (min-width: 990px) {
-        .bg {
-          background-color: red;
-        }
+      .bg {
+        background-color: red;
       }
-
+    }
     ",
         "type": "Rule",
       },
@@ -237,11 +234,11 @@ test('lightningTransform - playground sample', async () => {
         "parent": undefined,
         "pos": {
           "end": {
-            "column": 1,
-            "line": 10,
+            "column": 0,
+            "line": 9,
           },
           "start": {
-            "column": 3,
+            "column": 1,
             "line": 6,
             "source_index": 0,
           },
@@ -249,9 +246,8 @@ test('lightningTransform - playground sample', async () => {
         "prev": "Color",
         "prevSibling": "Rule",
         "text": ".bg {
-        background-color: green;
-      }
-
+      background-color: green;
+    }
     ",
         "type": "Rule",
       },
@@ -266,11 +262,11 @@ test('lightningTransform - playground sample', async () => {
         "parent": undefined,
         "pos": {
           "end": {
-            "column": 1,
-            "line": 16,
+            "column": 0,
+            "line": 15,
           },
           "start": {
-            "column": 3,
+            "column": 1,
             "line": 10,
             "source_index": 0,
           },
@@ -278,11 +274,10 @@ test('lightningTransform - playground sample', async () => {
         "prev": "Color",
         "prevSibling": "Rule",
         "text": "@media (max-width: 1290px) {
-        .bg {
-          background-color: blue;
-        }
+      .bg {
+        background-color: blue;
       }
-
+    }
     ",
         "type": "Rule",
       },
@@ -297,11 +292,11 @@ test('lightningTransform - playground sample', async () => {
         "parent": undefined,
         "pos": {
           "end": {
-            "column": 2,
-            "line": 21,
+            "column": 1,
+            "line": 20,
           },
           "start": {
-            "column": 3,
+            "column": 1,
             "line": 16,
             "source_index": 0,
           },
@@ -309,11 +304,10 @@ test('lightningTransform - playground sample', async () => {
         "prev": "Color",
         "prevSibling": "Rule",
         "text": "@media (min-width: 640px) {
-        .bg {
-          background-color: yellow;
-        }
+      .bg {
+        background-color: yellow;
       }
-     ",
+    ",
         "type": "Rule",
       },
     ]

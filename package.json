@@ -47,6 +47,7 @@
     "eslint": "^8.46.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
+    "outdent": "^0.8.0",
     "typescript": "^5.1.6",
     "vite": "^4.4.9",
     "vitest": "^0.34.3"

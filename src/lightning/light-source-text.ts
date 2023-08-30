@@ -3,7 +3,6 @@ import { LightAstNode } from './types'
 import { SourceText } from '../lib/source-text'
 
 export class LightningSourceText extends SourceText {
-  private _textByNode = new WeakMap<LightAstNode, string>()
   private _nodes = new Set<LightAstNode>()
   private _lastNode: LightAstNode | undefined
 
@@ -17,7 +16,6 @@ export class LightningSourceText extends SourceText {
 
   extractNodeRange(node: LightAstNode) {
     if (!node.pos) return ''
-    if (this._textByNode.has(node)) return this._textByNode.get(node)!
 
     const text = this.extractRange(
       node.pos.start.line,
@@ -25,7 +23,6 @@ export class LightningSourceText extends SourceText {
       node.pos.end.line,
       node.pos.end.column - 1,
     )
-    this._textByNode.set(node, text)
     return text
   }
 
@@ -53,10 +50,22 @@ export class LightningSourceText extends SourceText {
   }
 
   findNodeAtLocation(line: number, column: number) {
-    return this.findNodeFromRight((node) => {
+    const maybeNode = this.findNodeFromRight((node) => {
       if (!node.pos) return false
       return isWithinLocation({ line, column }, node.pos.start, node.pos.end)
     })
+
+    if (maybeNode) {
+      if (!maybeNode.children.length) return maybeNode
+
+      for (const child of maybeNode.children) {
+        if (child.pos && isWithinLocation({ line, column }, child.pos.start, child.pos.end)) {
+          return child
+        }
+      }
+
+      return maybeNode
+    }
   }
 }
 

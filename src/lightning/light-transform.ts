@@ -10,6 +10,7 @@ const dec = new TextDecoder()
 await light.default()
 
 const isDebug = false
+const createNode = (params: Omit<LightAstNode, 'children'>) => ({ ...params, children: [] } as LightAstNode)
 
 export const lightningTransform = (
   css: string,
@@ -22,6 +23,7 @@ export const lightningTransform = (
   let currentRoot: LightAstNode | undefined
   let prev: LightAstNode | undefined
   let depth = 0
+  let id = 0
   const prevWithLocationAtDepth = new Map<number, LightAstNode>()
 
   const stack = [] as LightAstNode[]
@@ -45,28 +47,28 @@ export const lightningTransform = (
   }
 
   const visitNode = (node: LightAstNode) => {
-    node.depth = depth
     isDebug && console.log(depth, `[visit] ${node.type}`, { stack, current })
 
     if (prev) {
       node.prev = prev
       prev.next = node
     }
-    prev = node
 
     source.add(node)
     visiteds.add(node.data)
 
     const location = getNodeLocation(node)
     if (location) {
-      // When we're back to the root
+      // When we're back done with a node & its children
       // Assign prev node location to those that don't have one
-      // Then reset prev node map except depth 0 (root)
-      if (depth === 0) {
-        const zeroDepth = prevWithLocationAtDepth.get(0)
-        prevWithLocationAtDepth.forEach((prevNode, prevDepth) => {
-          if (prevNode.pos) return
+      // Then reset prev node map except for those that are at the same depth
+      if (depth === 0 || (prev && (prev.depth ?? 0) >= node.depth)) {
+        const keys = Array.from(prevWithLocationAtDepth.keys())
+        const keepKeys = keys
+          .filter((key) => key === 0 || key <= (node.depth ?? 0))
+          .map((key) => [key, prevWithLocationAtDepth.get(key)] as const)
 
+        prevWithLocationAtDepth.forEach((prevNode, prevDepth) => {
           prevNode.pos = {
             start: getNodeLocation(prevNode)!,
             end: applyPrevCharacterToLocation(location, prevDepth + 2),
@@ -76,14 +78,18 @@ export const lightningTransform = (
         })
 
         prevWithLocationAtDepth.clear()
-        if (zeroDepth) {
-          prevWithLocationAtDepth.set(0, zeroDepth)
+        if (keepKeys.length) {
+          keepKeys.forEach(([key, value]) => {
+            prevWithLocationAtDepth.set(key, value!)
+          })
         }
-        isDebug && console.log('onChangeRoot', Array.from(prevWithLocationAtDepth.keys()))
+        isDebug && console.log('onChangeRoot', keys)
       }
 
       prevWithLocationAtDepth.set(depth, node)
     }
+
+    prev = node
 
     // is child
     if (current && (current.depth ?? 0) < node.depth) {
@@ -118,23 +124,23 @@ export const lightningTransform = (
     visitor: composeVisitors([
       {
         Angle(angle) {
-          const node = { type: 'Angle', data: angle, children: [] } as LightAstNode
+          const node = createNode({ type: 'Angle', data: angle, depth, id: id++ })
           visitNode(node)
         },
         Color(color) {
-          const node = { type: 'Color', data: color, children: [] } as LightAstNode
+          const node = createNode({ type: 'Color', data: color, depth, id: id++ })
           visitNode(node)
         },
         CustomIdent(ident) {
-          const node = { type: 'CustomIdent', data: ident, children: [] } as LightAstNode
+          const node = createNode({ type: 'CustomIdent', data: ident, depth, id: id++ })
           visitNode(node)
         },
         DashedIdent(ident) {
-          const node = { type: 'DashedIdent', data: ident, children: [] } as LightAstNode
+          const node = createNode({ type: 'DashedIdent', data: ident, depth, id: id++ })
           visitNode(node)
         },
         Declaration(property) {
-          const node = { type: 'Declaration', data: property, children: [] } as LightAstNode
+          const node = createNode({ type: 'Declaration', data: property, depth, id: id++ })
           visitNode(node)
           onEnterContainer(node)
         },
@@ -143,7 +149,7 @@ export const lightningTransform = (
           return property
         },
         EnvironmentVariable(env) {
-          const node = { type: 'EnvironmentVariable', data: env, children: [] } as LightAstNode
+          const node = createNode({ type: 'EnvironmentVariable', data: env, depth, id: id++ })
           visitNode(node)
           onEnterContainer(node)
         },
@@ -152,7 +158,7 @@ export const lightningTransform = (
           return
         },
         Function(fn) {
-          const node = { type: 'Function', data: fn, children: [] } as LightAstNode
+          const node = createNode({ type: 'Function', data: fn, depth, id: id++ })
           visitNode(node)
           onEnterContainer(node)
         },
@@ -161,7 +167,7 @@ export const lightningTransform = (
           return
         },
         Image(image) {
-          const node = { type: 'Image', data: image, children: [] } as LightAstNode
+          const node = createNode({ type: 'Image', data: image, depth, id: id++ })
           visitNode(node)
           onEnterContainer(node)
         },
@@ -170,7 +176,7 @@ export const lightningTransform = (
           return image
         },
         MediaQuery(query) {
-          const node = { type: 'MediaQuery', data: query, children: [] } as LightAstNode
+          const node = createNode({ type: 'MediaQuery', data: query, depth, id: id++ })
           visitNode(node)
           onEnterContainer(node)
         },
@@ -179,15 +185,15 @@ export const lightningTransform = (
           return query
         },
         Ratio(ratio) {
-          const node = { type: 'Ratio', data: ratio, children: [] } as LightAstNode
+          const node = createNode({ type: 'Ratio', data: ratio, depth, id: id++ })
           visitNode(node)
         },
         Resolution(resolution) {
-          const node = { type: 'Resolution', data: resolution, children: [] } as LightAstNode
+          const node = createNode({ type: 'Resolution', data: resolution, depth, id: id++ })
           visitNode(node)
         },
         Rule(rule) {
-          const node = { type: 'Rule', data: rule, children: [] } as LightAstNode
+          const node = createNode({ type: 'Rule', data: rule, depth, id: id++ })
           visitNode(node)
           onEnterContainer(node)
         },
@@ -196,11 +202,11 @@ export const lightningTransform = (
           return rule
         },
         Selector(selector) {
-          const node = { type: 'Selector', data: selector, children: [] } as LightAstNode
+          const node = createNode({ type: 'Selector', data: selector, depth, id: id++ })
           visitNode(node)
         },
         SupportsCondition(condition) {
-          const node = { type: 'SupportsCondition', data: condition, children: [] } as LightAstNode
+          const node = createNode({ type: 'SupportsCondition', data: condition, depth, id: id++ })
           visitNode(node)
           onEnterContainer(node)
           return condition
@@ -210,19 +216,19 @@ export const lightningTransform = (
           return condition
         },
         Time(time) {
-          const node = { type: 'Time', data: time, children: [] } as LightAstNode
+          const node = createNode({ type: 'Time', data: time, depth, id: id++ })
           visitNode(node)
         },
         Token(token) {
-          const node = { type: 'Token', data: token, children: [] } as LightAstNode
+          const node = createNode({ type: 'Token', data: token, depth, id: id++ })
           visitNode(node)
         },
         Url(url) {
-          const node = { type: 'Url', data: url, children: [] } as LightAstNode
+          const node = createNode({ type: 'Url', data: url, depth, id: id++ })
           visitNode(node)
         },
         Variable(variable) {
-          const node = { type: 'Variable', data: variable, children: [] } as LightAstNode
+          const node = createNode({ type: 'Variable', data: variable, depth, id: id++ })
           visitNode(node)
           onEnterContainer(node)
         },
@@ -237,8 +243,6 @@ export const lightningTransform = (
 
   // assign prev node location to those that don't have one
   prevWithLocationAtDepth.forEach((prevNode, prevDepth) => {
-    if (prevNode.pos) return
-
     prevNode.pos = {
       start: getNodeLocation(prevNode)!,
       end: applyPrevCharacterToLocation(source.lastLineColumn, prevDepth),
