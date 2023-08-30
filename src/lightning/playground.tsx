@@ -24,6 +24,7 @@ import { printNodeLoc, printNodeWithDetails } from './node-print-utils'
 import { playgroundMachine } from './playground-machine'
 import { sampleCss } from './sample-data'
 import { LightAstNode } from './types'
+import { getNodeWithPosFrom } from './node-location'
 
 const positionStyle = css({
   mt: 'auto',
@@ -45,6 +46,9 @@ const highlightMark = Decoration.mark({
   },
 })
 
+const resetHighlightMarks = (view: EditorView, end: number) =>
+  view.dispatch({ effects: highlighter.removeMarks(0, end) })
+
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
 // TODO add linter
@@ -58,7 +62,7 @@ export function Playground() {
           // reset highlight marks on output change
           const view = editorRef.current?.view
           if (view) {
-            view.dispatch({ effects: highlighter.removeMarks(0, context.input.length) })
+            resetHighlightMarks(view, context.input.length)
           }
         },
         displayError: ({ event }) => {
@@ -73,6 +77,8 @@ export function Playground() {
   const onSelectNode = (node: LightAstNode, view: EditorView) => {
     if (!node || !view) return
 
+    resetHighlightMarks(view, state.context.input.length)
+
     const pos = node.pos
     if (!pos) return
 
@@ -81,9 +87,6 @@ export function Playground() {
       view.state.doc.length,
       output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column, false),
     )
-
-    // Reset all marks
-    view.dispatch({ effects: highlighter.removeMarks(0, state.context.input.length) })
     // Add new mark
     view.dispatch({ effects: highlighter.addMarks.of([highlightMark.range(startPos, endPos)]) })
   }
@@ -141,8 +144,7 @@ export function Playground() {
                           if (!node) {
                             // codemirror Calls to EditorView.update are not allowed while an update is in progress
                             setTimeout(() => {
-                              // Reset all marks
-                              view.dispatch({ effects: highlighter.removeMarks(0, state.context.input.length) })
+                              resetHighlightMarks(view, state.context.input.length)
                             }, 0)
                             return
                           }
@@ -218,15 +220,18 @@ export function Playground() {
                       send({ type: 'SelectNode', params: { node } })
 
                       const view = editorRef.current?.view
-                      if (view && node.pos) {
-                        onSelectNode(node, view)
+                      const nodeWithPos = getNodeWithPosFrom(node)
+                      if (view) {
+                        onSelectNode(nodeWithPos, view)
 
-                        const editorLine = view.state.doc.line(node.pos.start.line + 1)
-                        const coords = view.lineBlockAt(editorLine.from)
-                        const clientHeight = view.scrollDOM.clientHeight // Height of the visible part of the editor
-                        // Calculate the top position to center the line vertically
-                        const centeredTop = coords.top + (coords.bottom - coords.top) / 2 - clientHeight / 2
-                        view.scrollDOM.scrollTo({ top: centeredTop, behavior: 'smooth' })
+                        if (nodeWithPos.pos) {
+                          const editorLine = view.state.doc.line(nodeWithPos.pos.start.line + 1)
+                          const coords = view.lineBlockAt(editorLine.from)
+                          const clientHeight = view.scrollDOM.clientHeight // Height of the visible part of the editor
+                          // Calculate the top position to center the line vertically
+                          const centeredTop = coords.top + (coords.bottom - coords.top) / 2 - clientHeight / 2
+                          view.scrollDOM.scrollTo({ top: centeredTop, behavior: 'smooth' })
+                        }
                       }
                     }}
                   />

@@ -35,3 +35,16 @@ export const applyPrevCharacterToLocation = (location: light.Location, count = 1
   }
   return loc
 }
+
+export const getNodeWithPosFrom = (node: LightAstNode) => {
+  let current = node as LightAstNode | undefined
+  while (current) {
+    if (current.pos) {
+      return current
+    }
+
+    current = current.parent
+  }
+
+  return node
+}
