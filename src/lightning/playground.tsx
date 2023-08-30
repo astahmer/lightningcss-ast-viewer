@@ -75,8 +75,11 @@ export function Playground() {
     const pos = node.pos
     if (!pos) return
 
-    const startPos = output.source.getPosAtLineAndColumn(pos.start.line, pos.start.column - 1, false)
-    const endPos = output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column, false)
+    const startPos = Math.max(0, output.source.getPosAtLineAndColumn(pos.start.line, pos.start.column - 1, false))
+    const endPos = Math.min(
+      view.state.doc.length,
+      output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column, false),
+    )
 
     // Reset all marks
     view.dispatch({ effects: highlighter.removeMarks(0, state.context.input.length) })
