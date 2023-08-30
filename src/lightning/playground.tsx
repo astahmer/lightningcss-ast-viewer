@@ -69,6 +69,7 @@ export function Playground() {
     }),
   )
 
+  // TODO also highlight / scroll into view in PostCSS root
   const onSelectNode = (node: LightAstNode, view: EditorView) => {
     if (!node || !view) return
 
@@ -149,6 +150,11 @@ export function Playground() {
                           send({ type: 'SelectNode', params: { node } })
                           // // codemirror Calls to EditorView.update are not allowed while an update is in progress
                           setTimeout(() => onSelectNode(node, view), 0)
+
+                          const nodeElement = document.querySelector(`span[data-node-id="${node.id}"]`)
+                          if (nodeElement) {
+                            nodeElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'center' })
+                          }
                         },
                       })
                   }}
@@ -208,10 +214,20 @@ export function Playground() {
                   <NodeRow
                     key={i}
                     node={node}
-                    selected={state.context.selectedNode}
                     setSelected={(node) => {
                       send({ type: 'SelectNode', params: { node } })
-                      editorRef.current?.view && onSelectNode(node, editorRef.current.view)
+
+                      const view = editorRef.current?.view
+                      if (view && node.pos) {
+                        onSelectNode(node, view)
+
+                        const editorLine = view.state.doc.line(node.pos.start.line + 1)
+                        const coords = view.lineBlockAt(editorLine.from)
+                        const clientHeight = view.scrollDOM.clientHeight // Height of the visible part of the editor
+                        // Calculate the top position to center the line vertically
+                        const centeredTop = coords.top + (coords.bottom - coords.top) / 2 - clientHeight / 2
+                        view.scrollDOM.scrollTo({ top: centeredTop, behavior: 'smooth' })
+                      }
                     }}
                   />
                 ))}
@@ -317,24 +333,15 @@ const lightningCssExpandedPaths = [
   '$.data.*.*.loc.*',
 ]
 
-const NodeRow = ({
-  node,
-  selected,
-  setSelected,
-  depth = 0,
-}: {
-  node: LightAstNode
-  selected: LightAstNode | undefined
-  setSelected: (node: LightAstNode) => void
-  depth?: number
-}) => {
+const NodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: (node: LightAstNode) => void }) => {
   const actor = useLightningContext()
   const withDetails = useSelector(actor, (state) => state.context.ui.withTreeDetails)
+  const selected = useSelector(actor, (state) => state.context.selectedNode)
 
   const [isExpanded, setIsExpanded] = useState(true)
 
   return (
-    <Flex direction="column" mt={node.parent ? undefined : '1'}>
+    <Flex direction="column" mt={node.parent ? undefined : '1'} data-node-id={node.id}>
       <span
         className={css({
           display: 'inline-flex',
@@ -342,7 +349,8 @@ const NodeRow = ({
           alignItems: 'center',
           cursor: 'pointer',
           fontWeight: node === selected ? 'bold' : undefined,
-          ml: node.children.length && depth ? '-4' : undefined,
+          color: node === selected ? 'blue.400' : undefined,
+          ml: node.children.length && node.depth ? '-4' : undefined,
         })}
         onClick={(e) => {
           console.log(node)
@@ -354,6 +362,7 @@ const NodeRow = ({
         }}
       >
         <span
+          data-node-id={node.id}
           onClickCapture={(e) => {
             e.stopPropagation()
             setIsExpanded(!isExpanded)
@@ -373,7 +382,7 @@ const NodeRow = ({
       {isExpanded && node.children ? (
         <Bleed block="0.5" pl="8">
           {node.children.map((child, i) => (
-            <NodeRow key={i} node={child} selected={selected} setSelected={setSelected} depth={depth + 1} />
+            <NodeRow key={i} node={child} setSelected={setSelected} />
           ))}
         </Bleed>
       ) : null}
