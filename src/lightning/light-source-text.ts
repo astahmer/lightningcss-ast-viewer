@@ -1,17 +1,34 @@
-import * as light from 'lightningcss-wasm'
 import { LightAstNode } from './types'
 import { SourceText } from '../lib/source-text'
+import { binarySearch } from '../lib/binary-search'
+
+type NodeRange = [start: number, end: number]
 
 export class LightningSourceText extends SourceText {
   private _nodes = new Set<LightAstNode>()
-  private _lastNode: LightAstNode | undefined
+  private _nodesWithPos = [] as Array<[LightAstNode, NodeRange]>
+  private posByNode = new WeakMap<LightAstNode, NodeRange>()
 
   constructor(text: string) {
     super(text)
   }
 
-  nodes() {
+  get nodes() {
     return this._nodes
+  }
+
+  assignNodeWithPos() {
+    this._nodes.forEach((node) => {
+      if (node.pos) {
+        const pos = [
+          this.getPosAtLineAndColumn(node.pos.start.line, node.pos.start.column),
+          this.getPosAtLineAndColumn(node.pos.end.line, node.pos.end.column),
+        ] as NodeRange
+
+        this.posByNode.set(node, pos)
+        this._nodesWithPos.push([node, pos])
+      }
+    })
   }
 
   extractNodeRange(node: LightAstNode) {
@@ -26,61 +43,44 @@ export class LightningSourceText extends SourceText {
     return text
   }
 
-  add(node: LightAstNode) {
+  addNode(node: LightAstNode) {
     this._nodes.add(node)
-    this._lastNode = node
   }
 
-  findNode(predicate: (node: LightAstNode) => boolean) {
-    for (const node of this._nodes) {
-      if (predicate(node)) {
-        return node
-      }
-    }
-  }
+  getNodeRange(node: LightAstNode) {
+    if (!node.pos) return
 
-  findNodeFromRight(predicate: (node: LightAstNode) => boolean) {
-    let current = this._lastNode
-    while (current) {
-      if (predicate(current)) {
-        return current
-      }
-      current = current.prev
-    }
+    return this.posByNode.get(node)
   }
 
   findNodeAtLocation(line: number, column: number) {
-    const maybeNode = this.findNodeFromRight((node) => {
-      if (!node.pos) return false
-      return isWithinLocation({ line, column }, node.pos.start, node.pos.end)
+    const pos = this.getPosAtLineAndColumn(line, column, false)
+    const index = binarySearch(this._nodesWithPos, (item) => {
+      const [_node, range] = item
+      if (pos <= range[0]) return -1
+      if (pos >= range[1] - 1) return 1
+      return 0
     })
 
-    if (maybeNode) {
-      if (!maybeNode.children.length) return maybeNode
+    const item = this._nodesWithPos[index]
+    if (!item) return
 
-      for (const child of maybeNode.children) {
-        if (child.pos && isWithinLocation({ line, column }, child.pos.start, child.pos.end)) {
-          return child
-        }
-      }
+    const node = item[0]
+    if (!node.children.length) return node
 
-      return maybeNode
-    }
+    const childIndex = binarySearch(
+      node.children.filter((n) => n.pos),
+      (child) => {
+        const range = this.getNodeRange(child)!
+        if (pos <= range[0]) return -1
+        if (pos >= range[1] - 1) return 1
+        return 0
+      },
+    )
+
+    const child = node.children[childIndex]
+    if (child) return child
+
+    return node
   }
-}
-
-function isWithinLocation(target: light.Location, start: light.Location, end: light.Location): boolean {
-  if (target.line < start.line || target.line > end.line) {
-    return false
-  }
-
-  if (target.line === start.line && target.column < start.column) {
-    return false
-  }
-
-  if (target.line === end.line && target.column > end.column) {
-    return false
-  }
-
-  return true
 }

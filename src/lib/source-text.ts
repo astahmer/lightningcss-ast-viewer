@@ -6,10 +6,17 @@ export interface LineColumn {
 export class SourceText {
   private _text: string
   private _lines: string[]
+  private cumulativeLinesLength: Map<number, number> = new Map()
 
   constructor(text: string) {
     this._text = text
     this._lines = text.split('\n')
+
+    let length = 0
+    this._lines.forEach((line, index) => {
+      this.cumulativeLinesLength.set(index, length)
+      length += line.length + 1 // +1 for newline character
+    })
   }
 
   get text() {
@@ -46,17 +53,7 @@ export class SourceText {
       throw new Error('Column number out of range.')
     }
 
-    let index = 0
-
-    // Add lengths of preceding lines
-    for (let i = 0; i < _line; i++) {
-      index += this._lines[i].length + 1 // +1 for newline character
-    }
-
-    // Add the column value
-    index += _column
-
-    return index
+    return (this.cumulativeLinesLength.get(_line) ?? 0) + _column
   }
 
   getLineAndColumnAtPos(index: number): LineColumn {

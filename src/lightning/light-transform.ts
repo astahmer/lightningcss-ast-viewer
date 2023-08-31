@@ -54,7 +54,7 @@ export const lightningTransform = (
       prev.next = node
     }
 
-    source.add(node)
+    source.addNode(node)
     visiteds.add(node.data)
 
     const location = getNodeLocation(node)
@@ -250,5 +250,6 @@ export const lightningTransform = (
     prevNode.text = source.extractNodeRange(prevNode)
   })
 
+  source.assignNodeWithPos()
   return { nodes, visiteds, css: dec.decode(res.code), source } as LightningTransformResult
 }
