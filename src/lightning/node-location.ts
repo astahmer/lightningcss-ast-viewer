@@ -1,5 +1,6 @@
-import * as light from 'lightningcss-wasm'
-import { LightAstNode } from './types'
+import type * as light from 'lightningcss-wasm'
+import type { LightAstNode } from './types'
+import type postcss from 'postcss'
 
 export const getNodeLocation = (
   node: LightAstNode,
@@ -40,6 +41,19 @@ export const getNodeWithPosFrom = (node: LightAstNode) => {
   let current = node as LightAstNode | undefined
   while (current) {
     if (current.pos) {
+      return current
+    }
+
+    current = current.parent
+  }
+
+  return node
+}
+
+export const getPostCSSNodeWithSourceFrom = (node: postcss.Node) => {
+  let current = node as postcss.Node | undefined
+  while (current) {
+    if (current.source?.start && current.source?.end) {
       return current
     }
 

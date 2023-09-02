@@ -47,10 +47,10 @@ export class SourceText {
 
     // Validation
     if (_line < 0 || _line >= this._lines.length) {
-      throw new Error('Line number out of range.')
+      throw new Error('Line number out of range:' + _line + '. Lines: ' + this._lines.length)
     }
     if (_column < 0 || _column > this._lines[_line].length) {
-      throw new Error('Column number out of range.')
+      throw new Error('Column number out of range: ' + _column + ' in line ' + _line + '. Lines: ' + this._lines.length)
     }
 
     return (this.cumulativeLinesLength.get(_line) ?? 0) + _column
@@ -76,7 +76,7 @@ export class SourceText {
     return { line, column } as LineColumn
   }
 
-  extractRange(startLine: number, startCol: number, endLine: number, endCol: number): string {
+  extractTextInRange(startLine: number, startCol: number, endLine: number, endCol: number): string {
     if (startLine === endLine) {
       return this._lines[startLine].slice(startCol, endCol)
     }

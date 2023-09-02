@@ -20,11 +20,17 @@ import { lineNumberStartFromZeroPlugin } from '../codemirror/codemirror-line-num
 import { createPositionPlugin } from '../codemirror/codemirror-position-plugin'
 import { Switch } from '../components/ui/switch'
 import { InspectorPanel } from './inspector-panel'
-import { printNodeLoc, printNodeWithDetails } from './node-print-utils'
+import {
+  printNodeLoc,
+  printNodeWithDetails,
+  printPostCSSNodeLoc,
+  printPostCSSNodeWithDetails,
+} from './node-print-utils'
 import { playgroundMachine } from './playground-machine'
 import { sampleCss } from './sample-data'
 import { LightAstNode } from './types'
-import { getNodeWithPosFrom } from './node-location'
+import { getNodeWithPosFrom, getPostCSSNodeWithSourceFrom } from './node-location'
+import postcss from 'postcss'
 
 const positionStyle = css({
   mt: 'auto',
@@ -52,6 +58,23 @@ const resetHighlightMarks = (view: EditorView, end: number) =>
 // adapted from https://github.com/parcel-bundler/lightningcss/blob/393013928888d47ec7684d52ed79f758d371bd7b/website/playground/playground.js
 
 // TODO add linter
+// TODO also highlight on hovering on AST nodes (different color), maybe do the opposite as well (highlight in AST when hovering in editor)
+
+const scrollToLightNode = (node: LightAstNode) => {
+  const lightNodeElement = document.querySelector(`span[data-light-node-id="${node.id}"]`)
+  if (lightNodeElement) {
+    lightNodeElement.scrollIntoView({ behavior: 'instant', inline: 'center', block: 'center' })
+  }
+}
+
+const scrollToEditorLine = (line: number, view: EditorView) => {
+  const editorLine = view.state.doc.line(line)
+  const coords = view.lineBlockAt(editorLine.from)
+  const clientHeight = view.scrollDOM.clientHeight // Height of the visible part of the editor
+  // Calculate the top position to center the line vertically
+  const centeredTop = coords.top + (coords.bottom - coords.top) / 2 - clientHeight / 2
+  view.scrollDOM.scrollTo({ top: centeredTop, behavior: 'instant' })
+}
 
 export function Playground() {
   const { toast } = useToast()
@@ -69,27 +92,45 @@ export function Playground() {
           if (event.type !== 'DisplayError') return
           toast(event.params)
         },
+        onSelectNode({ event, context }) {
+          if (!(event.type === 'SelectNode' || event.type === 'SelectPostCSSNode')) return
+
+          // scroll in postcss inspector to the selected node
+          if (context.postcssSource && context.selectedPostCSSNode) {
+            const index = context.postcssSource.getNodeIndex(context.selectedPostCSSNode)
+            const postcsstNodeElement = document.querySelector(`span[data-postcss-node-id="${index}"]`)
+            if (postcsstNodeElement) {
+              postcsstNodeElement.scrollIntoView({ behavior: 'instant', inline: 'center', block: 'center' })
+            }
+          }
+
+          const node = context.selectedNode
+          const view = editorRef.current?.view
+          if (!node || !view) {
+            return
+          }
+
+          if (event.type === 'SelectPostCSSNode') {
+            scrollToLightNode(node)
+          }
+
+          resetHighlightMarks(view, state.context.input.length)
+
+          const pos = node.pos
+          if (!pos) return
+
+          // highlight selected node text in editor
+          const startPos = Math.max(0, output.source.getPosAtLineAndColumn(pos.start.line, pos.start.column - 1, false))
+          const endPos = Math.min(
+            view.state.doc.length,
+            output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column, false),
+          )
+          // Add new mark
+          view.dispatch({ effects: highlighter.addMarks.of([highlightMark.range(startPos, endPos)]) })
+        },
       },
     }),
   )
-
-  // TODO also highlight / scroll into view in PostCSS root
-  const onSelectNode = (node: LightAstNode, view: EditorView) => {
-    if (!node || !view) return
-
-    resetHighlightMarks(view, state.context.input.length)
-
-    const pos = node.pos
-    if (!pos) return
-
-    const startPos = Math.max(0, output.source.getPosAtLineAndColumn(pos.start.line, pos.start.column - 1, false))
-    const endPos = Math.min(
-      view.state.doc.length,
-      output.source.getPosAtLineAndColumn(pos.end.line, pos.end.column, false),
-    )
-    // Add new mark
-    view.dispatch({ effects: highlighter.addMarks.of([highlightMark.range(startPos, endPos)]) })
-  }
 
   const { output } = state.context
 
@@ -149,14 +190,10 @@ export function Playground() {
                             return
                           }
 
-                          send({ type: 'SelectNode', params: { node } })
-                          // // codemirror Calls to EditorView.update are not allowed while an update is in progress
-                          setTimeout(() => onSelectNode(node, view), 0)
+                          // codemirror Calls to EditorView.update are not allowed while an update is in progress
+                          setTimeout(() => send({ type: 'SelectNode', params: { node } }), 0)
 
-                          const nodeElement = document.querySelector(`span[data-node-id="${node.id}"]`)
-                          if (nodeElement) {
-                            nodeElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'center' })
-                          }
+                          scrollToLightNode(node)
                         },
                       })
                   }}
@@ -183,6 +220,7 @@ export function Playground() {
                   </div>
                 </Flex>
 
+                {/* TODO convert that button to a select with a list of pre-defined samples */}
                 <button
                   className={cx(button(), css({ flexShrink: 0 }))}
                   onClick={() => send({ type: 'ChangeInput', params: { value: sampleCss.mediaQueries } })}
@@ -207,35 +245,28 @@ export function Playground() {
             gap="0"
           >
             <SplitterPanel id="lightningcss" border="none">
-              <Flex w="100%" h="100%" direction="column" overflow="auto">
+              <Flex w="100%" h="100%" direction="column">
                 <div className={flex({ fontWeight: 'bold' })}>
                   <span>LightningCSS AST</span>
                   <ShowDetails ml="auto" />
                 </div>
-                {Array.from(state.context.output.nodes).map((node, i) => (
-                  <NodeRow
-                    key={i}
-                    node={node}
-                    setSelected={(node) => {
-                      send({ type: 'SelectNode', params: { node } })
+                <Flex w="100%" h="100%" direction="column" overflow="auto">
+                  {Array.from(state.context.output.nodes).map((node, i) => (
+                    <LightNodeRow
+                      key={i}
+                      node={node}
+                      setSelected={(node) => {
+                        send({ type: 'SelectNode', params: { node } })
 
-                      const view = editorRef.current?.view
-                      const nodeWithPos = getNodeWithPosFrom(node)
-                      if (view) {
-                        onSelectNode(nodeWithPos, view)
-
-                        if (nodeWithPos.pos) {
-                          const editorLine = view.state.doc.line(nodeWithPos.pos.start.line + 1)
-                          const coords = view.lineBlockAt(editorLine.from)
-                          const clientHeight = view.scrollDOM.clientHeight // Height of the visible part of the editor
-                          // Calculate the top position to center the line vertically
-                          const centeredTop = coords.top + (coords.bottom - coords.top) / 2 - clientHeight / 2
-                          view.scrollDOM.scrollTo({ top: centeredTop, behavior: 'smooth' })
+                        const view = editorRef.current?.view
+                        const nodeWithPos = getNodeWithPosFrom(node)
+                        if (view && nodeWithPos.pos) {
+                          scrollToEditorLine(nodeWithPos.pos.start.line + 1, view)
                         }
-                      }
-                    }}
-                  />
-                ))}
+                      }}
+                    />
+                  ))}
+                </Flex>
               </Flex>
             </SplitterPanel>
             <SplitterResizeTrigger id="lightningcss:postcss" my="2" />
@@ -246,6 +277,35 @@ export function Playground() {
                     css={{ pt: 4 }}
                     data={state.context.postcssRoot.toJSON()}
                     expandPaths={['$', '$.nodes', '$.nodes.*']}
+                    defaultValue="ast"
+                    tabs={[
+                      {
+                        id: 'ast',
+                        label: 'AST',
+                        children: (
+                          <Flex w="100%" h="100%" direction="column" overflow="auto">
+                            {Array.from(state.context.postcssRoot.nodes).map((node, i) => (
+                              <PostCSSNodeRow
+                                key={i}
+                                depth={0}
+                                node={node}
+                                setSelected={(node) => {
+                                  send({ type: 'SelectPostCSSNode', params: { node } })
+
+                                  // TODO scroll in lightcss inspector to the selected node
+
+                                  const view = editorRef.current?.view
+                                  const nodeWithPos = getPostCSSNodeWithSourceFrom(node)
+                                  if (view && nodeWithPos.source?.start?.line) {
+                                    scrollToEditorLine(nodeWithPos.source.start.line, view)
+                                  }
+                                }}
+                              />
+                            ))}
+                          </Flex>
+                        ),
+                      },
+                    ]}
                   >
                     <div className={flex({ mr: 'auto', fontWeight: 'bold' })}>
                       <span>PostCSS</span>
@@ -269,7 +329,6 @@ export function Playground() {
             ]}
           >
             <SplitterPanel id="json" border="none">
-              {/* TODO add AST view ? */}
               {state.context.error ? (
                 <Center fontSize="lg" p="4" textAlign="left" fontWeight="bold" color="red.400">
                   {state.context.error.message}
@@ -338,23 +397,24 @@ const lightningCssExpandedPaths = [
   '$.data.*.*.loc.*',
 ]
 
-const NodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: (node: LightAstNode) => void }) => {
+const LightNodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: (node: LightAstNode) => void }) => {
   const actor = useLightningContext()
   const withDetails = useSelector(actor, (state) => state.context.ui.withTreeDetails)
   const selected = useSelector(actor, (state) => state.context.selectedNode)
+  const isSelected = selected === node
 
   const [isExpanded, setIsExpanded] = useState(true)
 
   return (
-    <Flex direction="column" mt={node.parent ? undefined : '1'} data-node-id={node.id}>
+    <Flex direction="column" mt={node.parent ? undefined : '1'} data-light-node-id={node.id}>
       <span
         className={css({
           display: 'inline-flex',
           alignSelf: 'baseline',
           alignItems: 'center',
           cursor: 'pointer',
-          fontWeight: node === selected ? 'bold' : undefined,
-          color: node === selected ? 'blue.400' : undefined,
+          fontWeight: isSelected ? 'bold' : undefined,
+          color: isSelected ? 'blue.400' : undefined,
           ml: node.children.length && node.depth ? '-4' : undefined,
         })}
         onClick={(e) => {
@@ -367,7 +427,7 @@ const NodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: (node
         }}
       >
         <span
-          data-node-id={node.id}
+          data-light-node-id={node.id}
           onClickCapture={(e) => {
             e.stopPropagation()
             setIsExpanded(!isExpanded)
@@ -385,9 +445,80 @@ const NodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: (node
         {withDetails ? printNodeWithDetails(node) + ' ' + (printNodeLoc(node) ?? '') : node.type}
       </span>
       {isExpanded && node.children ? (
-        <Bleed block="0.5" pl="8">
+        <Bleed block="0.25" pl="8">
           {node.children.map((child, i) => (
-            <NodeRow key={i} node={child} setSelected={setSelected} />
+            <LightNodeRow key={i} node={child} setSelected={setSelected} />
+          ))}
+        </Bleed>
+      ) : null}
+    </Flex>
+  )
+}
+
+const PostCSSNodeRow = ({
+  node,
+  depth,
+  setSelected,
+}: {
+  node: postcss.Root | postcss.ChildNode
+  depth: number
+  setSelected: (node: postcss.Root | postcss.ChildNode) => void
+}) => {
+  const actor = useLightningContext()
+  const withDetails = useSelector(actor, (state) => state.context.ui.withTreeDetails)
+
+  const selectedPostcssNode = useSelector(actor, (state) => state.context.selectedPostCSSNode)
+  const id = useSelector(actor, (state) => state.context.postcssSource?.getNodeIndex(node))
+  const isSelected = selectedPostcssNode === node
+
+  const [isExpanded, setIsExpanded] = useState(true)
+  const children = 'nodes' in node ? node.nodes : undefined
+
+  return (
+    <Flex direction="column" mt={node.parent ? undefined : '1'} data-postcss-node-id={id}>
+      <span
+        className={css({
+          display: 'inline-flex',
+          alignSelf: 'baseline',
+          alignItems: 'center',
+          cursor: 'pointer',
+          fontWeight: isSelected ? 'bold' : undefined,
+          color: isSelected ? 'blue.400' : undefined,
+          ml: children?.length && depth ? '-4' : undefined,
+        })}
+        onClick={(e) => {
+          console.log(node)
+          e.stopPropagation()
+          return setSelected(node)
+        }}
+        onDoubleClick={() => {
+          setIsExpanded(!isExpanded)
+        }}
+      >
+        <span
+          data-postcss-node-id={id}
+          onClickCapture={(e) => {
+            e.stopPropagation()
+            setIsExpanded(!isExpanded)
+          }}
+          className={css({
+            display: children?.length ? undefined : 'none',
+            fontSize: 'xs',
+            mt: '1',
+            mr: '1',
+            cursor: 'pointer',
+          })}
+        >
+          {isExpanded ? '▼' : '▶'}{' '}
+        </span>
+        {withDetails
+          ? printPostCSSNodeWithDetails(node) + ' ' + (printPostCSSNodeLoc(node) ?? '')
+          : node.constructor.name}
+      </span>
+      {isExpanded && children ? (
+        <Bleed block="0.25" pl="8">
+          {children.map((child, i) => (
+            <PostCSSNodeRow key={i} depth={depth + 1} node={child} setSelected={setSelected} />
           ))}
         </Bleed>
       ) : null}

@@ -10,6 +10,8 @@ import { useState } from 'react'
 import { segmentGroup } from '../../styled-system/recipes'
 import { SystemStyleObject } from '../../styled-system/types'
 
+type Tab = { id: string; label: string; children?: React.ReactNode }
+
 const actionTabs = [
   { id: 'inspect', label: 'Inspect' },
   { id: 'json', label: 'JSON' },
@@ -23,15 +25,22 @@ export const InspectorPanel = ({
   children,
   css: cssProp,
   tabsProps,
+  tabs = [],
+  defaultValue = 'inspect',
 }: {
   data: unknown | undefined
   expandPaths?: string[]
   children?: React.ReactNode
   css?: SystemStyleObject
   tabsProps?: SystemStyleObject
+  tabs?: Tab[]
+  defaultValue?: string
 }) => {
   const theme = useTheme()
-  const [activeTab, setActiveTab] = useState('inspect')
+  const [activeTab, setActiveTab] = useState(defaultValue)
+
+  const panelTabs = tabs.concat(actionTabs)
+  const activeTabIndex = panelTabs.findIndex((tab) => tab.id === activeTab)
 
   return (
     <div
@@ -53,10 +62,10 @@ export const InspectorPanel = ({
         <SegmentGroup
           orientation="horizontal"
           className={cx(classes.root, css({ border: 'none' }))}
-          defaultValue="inspect"
+          defaultValue={defaultValue}
           onChange={(e) => setActiveTab(e.value)}
         >
-          {actionTabs.map((option, id) => {
+          {panelTabs.map((option, id) => {
             return (
               <Segment key={id} value={option.id} className={classes.radio}>
                 <SegmentControl className={classes.radioControl} />
@@ -94,7 +103,7 @@ export const InspectorPanel = ({
             expandPaths={expandPaths}
           />
         </div>
-      ) : (
+      ) : activeTab === 'json' ? (
         <div
           className={css({ height: '100%', width: '100%', overflow: 'auto', mt: 0.5, '& .cm-content': { pt: '0!' } })}
         >
@@ -109,7 +118,9 @@ export const InspectorPanel = ({
             basicSetup={{ lineNumbers: false }}
           />
         </div>
-      )}
+      ) : activeTabIndex > -1 ? (
+        tabs[activeTabIndex].children
+      ) : null}
     </div>
   )
 }

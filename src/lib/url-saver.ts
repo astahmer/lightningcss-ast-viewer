@@ -54,7 +54,11 @@ class UrlSaver<T extends Record<string, string>> {
   }
 
   setValue<Key extends keyof T>(name: Key, value: T[Key]) {
-    updateUrlWithCompressedString(name as string, value)
+    try {
+      updateUrlWithCompressedString(name as string, value)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   reset(name: keyof T) {

@@ -4,7 +4,9 @@ import { urlSaver } from '../lib/url-saver'
 import { lightningTransform } from './light-transform'
 import { LightAstNode, LightVisitors, LightningTransformResult } from './types'
 import { sampleCss } from './sample-data'
-import { LightningSourceText } from './light-source-text'
+import { LightningSourceText, StartEndRange } from './light-source-text'
+import { getNodeWithPosFrom, getPostCSSNodeWithSourceFrom } from './node-location'
+import { PostCSSSourceText } from './postcss-source-text'
 
 const defaultResult: LightningTransformResult = {
   nodes: new Set(),
@@ -18,7 +20,10 @@ const initialCtx = {
   output: defaultResult,
   visitors: {} as LightVisitors,
   postcssRoot: undefined as postcss.Root | undefined,
+  postcssSource: undefined as PostCSSSourceText | undefined,
   selectedNode: undefined as LightAstNode | undefined,
+  selectedRange: undefined as StartEndRange | undefined,
+  selectedPostCSSNode: undefined as postcss.Node | undefined,
   error: undefined as Error | undefined,
   ui: {
     withTreeDetails: false,
@@ -32,6 +37,7 @@ type PlaygroundEvent =
   | { type: 'ChangeInput'; params: { value: string } }
   | { type: 'ChangeVisitors'; params: { visitors: LightVisitors } }
   | { type: 'SelectNode'; params: { node: LightAstNode | undefined } }
+  | { type: 'SelectPostCSSNode'; params: { node: postcss.Node | undefined } }
   | { type: 'ToggleTreeDetails' }
   | { type: 'ResetUiState' }
   | { type: 'DisplayError'; params: { title: string; description: string } }
@@ -53,7 +59,8 @@ export const playgroundMachine = createMachine(
         on: {
           ChangeInput: { actions: ['setInput', 'transform'] },
           ChangeVisitors: { actions: ['setVisitors', 'transform'] },
-          SelectNode: { actions: ['selectNode'] },
+          SelectNode: { actions: ['selectNode', 'onSelectNode'] },
+          SelectPostCSSNode: { actions: ['selectPostCSSNode', 'onSelectNode'] },
           //
           ToggleTreeDetails: { actions: 'toggleTreeDetails' },
           SetActiveInputTab: { actions: 'setActiveInputTab' },
@@ -72,8 +79,50 @@ export const playgroundMachine = createMachine(
       setVisitors: assign({
         visitors: ({ event, context }) => (event.type === 'ChangeVisitors' ? event.params.visitors : context.visitors),
       }),
-      selectNode: assign({
-        selectedNode: ({ event }) => (event.type === 'SelectNode' ? event.params.node : undefined),
+      selectNode: assign(({ event, context }) => {
+        if (event.type !== 'SelectNode') return context
+
+        const selectedNode = event.params.node
+        if (!selectedNode) {
+          return {
+            selectedNode: undefined,
+            selectedRange: undefined,
+            selectedPostCSSNode: undefined,
+          }
+        }
+
+        const selectedRange = context.output.source.getNodeRange(getNodeWithPosFrom(selectedNode))
+
+        return {
+          selectedNode,
+          selectedRange,
+          selectedPostCSSNode: selectedRange && context.postcssSource?.findNodeAtPosition(selectedRange[0]),
+        }
+      }),
+      selectPostCSSNode: assign(({ event, context }) => {
+        if (event.type !== 'SelectPostCSSNode') return context
+
+        const selectedPostCSSNode = event.params.node
+        if (!selectedPostCSSNode) {
+          return {
+            selectedNode: undefined,
+            selectedRange: undefined,
+            selectedPostCSSNode: undefined,
+          }
+        }
+
+        const withPos = getPostCSSNodeWithSourceFrom(selectedPostCSSNode)
+        const selectedRange = context.postcssSource?.getNodeRange(withPos)
+        let selectedNode
+        if (selectedRange) {
+          selectedNode = context.output.source.findNodeAtPosition(selectedRange[0] + 1, selectedRange[1])
+        }
+
+        return {
+          selectedNode,
+          selectedRange,
+          selectedPostCSSNode,
+        }
       }),
       toggleTreeDetails: assign({
         ui: ({ context }) => ({ ...context.ui, withTreeDetails: !context.ui.withTreeDetails }),
@@ -108,8 +157,11 @@ export const playgroundMachine = createMachine(
 
         try {
           const output = lightningTransform(input, { visitor: visitors })
+          const postcssSource = new PostCSSSourceText(input)
           const postcssRoot = postcss.parse(input)
-          console.log(output, postcssRoot)
+          postcssRoot.walk((node) => postcssSource.addNode(node))
+
+          console.log({ output, postcssRoot })
           urlSaver.setValue('input', input)
 
           // reset selected on output change
@@ -118,7 +170,7 @@ export const playgroundMachine = createMachine(
             self.send({ type: 'ResetUiState' })
           }
 
-          return { ...context, error: undefined, output, postcssRoot }
+          return { ...context, error: undefined, output, postcssRoot, postcssSource }
         } catch (err) {
           console.error(err)
           self.send({

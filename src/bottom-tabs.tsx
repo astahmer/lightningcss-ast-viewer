@@ -41,7 +41,6 @@ export function BottomTabs() {
     setVisitorsInput(value)
     const code = await esbuildTransform(`(${value})()`)
     const mod = eval(code)
-    console.log({ code, mod })
 
     send({ type: 'ChangeVisitors', params: { visitors: mod } })
     urlSaver.setValue('visitors', value)

@@ -74,7 +74,7 @@ export const lightningTransform = (
             end: applyPrevCharacterToLocation(location, prevDepth + 2),
           }
 
-          prevNode.text = source.extractNodeRange(prevNode)
+          prevNode.text = source.extractNodeTextInRange(prevNode)
         })
 
         prevWithLocationAtDepth.clear()
@@ -247,7 +247,7 @@ export const lightningTransform = (
       start: getNodeLocation(prevNode)!,
       end: applyPrevCharacterToLocation(source.lastLineColumn, prevDepth),
     }
-    prevNode.text = source.extractNodeRange(prevNode)
+    prevNode.text = source.extractNodeTextInRange(prevNode)
   })
 
   source.assignNodeWithPos()

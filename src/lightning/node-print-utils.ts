@@ -1,5 +1,6 @@
-import * as light from 'lightningcss-wasm'
-import { LightAstNode } from './types'
+import type * as light from 'lightningcss-wasm'
+import type postcss from 'postcss'
+import type { LightAstNode } from './types'
 import { getNodeLocation } from './node-location'
 
 const printLoc = (loc: light.Location) => {
@@ -53,5 +54,30 @@ export const printNodeWithDetails = (node: LightAstNode) => {
       return `Variable: ${node.data.name.ident}`
     default:
       return 'Unknown'
+  }
+}
+
+export const printPostCSSNodeWithDetails = (node: postcss.AnyNode) => {
+  switch (node.type) {
+    case 'atrule':
+      return `AtRule: ${node.name}`
+    case 'comment':
+      return `Comment: ${node.text}`
+    case 'decl':
+      return `Declaration: ${node.prop}`
+    case 'rule':
+      return `Rule: ${node.selector}`
+    case 'root':
+      return `Root`
+    case 'document':
+      return `Document`
+    default:
+      return 'Unknown'
+  }
+}
+
+export const printPostCSSNodeLoc = (node: postcss.Node) => {
+  if (node.source?.start && node.source?.end) {
+    return `(${printLoc(node.source.start)})`
   }
 }
