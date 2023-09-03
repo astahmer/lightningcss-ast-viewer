@@ -15,7 +15,7 @@ import { Decoration, EditorView } from '@codemirror/view'
 
 import { useActorRef, useSelector } from '@xstate/react'
 import postcss from 'postcss'
-import { flex } from '../../styled-system/patterns'
+import { bleed, flex } from '../../styled-system/patterns'
 import { highlightPlugin, highlighter } from '../codemirror/codemirror-highlight-plugin'
 import { lineNumberStartFromZeroPlugin } from '../codemirror/codemirror-line-number-from-zero-plugin'
 import { createPositionPlugin } from '../codemirror/codemirror-position-plugin'
@@ -96,7 +96,7 @@ export function Playground() {
           if (!(event.type === 'SelectNode' || event.type === 'SelectPostCSSNode')) return
 
           // scroll in postcss inspector to the selected node
-          if (context.postcssSource && context.selectedPostCSSNode) {
+          if (event.type === 'SelectNode' && context.postcssSource && context.selectedPostCSSNode) {
             const index = context.postcssSource.getNodeIndex(context.selectedPostCSSNode)
             const postcsstNodeElement = document.querySelector(`span[data-postcss-node-id="${index}"]`)
             if (postcsstNodeElement) {
@@ -168,6 +168,7 @@ const InputColumn = ({ editorRef }: { editorRef: MutableRefObject<ReactCodeMirro
   const input = useSelector(actor, (state) => state.context.input)
 
   const theme = useTheme()
+  // TODO update pos text on AST node selection
   const positionPluginRef = useRef<ReturnType<typeof createPositionPlugin>>()
 
   return (
@@ -433,6 +434,32 @@ const lightningCssExpandedPaths = [
   '$.data.*.*.loc.*',
 ]
 
+const nodeRowName = css({
+  display: 'inline-flex',
+  alignSelf: 'baseline',
+  alignItems: 'center',
+  cursor: 'pointer',
+  _selected: {
+    fontWeight: 'bold',
+    color: 'blue.400',
+  },
+  '&[data-with-children]': {
+    ml: '-4',
+  },
+})
+
+const nodeRowArrow = css({
+  '&[data-no-children]': {
+    display: 'none',
+  },
+  fontSize: 'xs',
+  mt: '1',
+  mr: '1',
+  cursor: 'pointer',
+})
+
+const bleeding = bleed({ block: '0.25', pl: '8' })
+
 const LightNodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: (node: LightAstNode) => void }) => {
   const actor = useLightningContext()
   const withDetails = useSelector(actor, (state) => state.context.ui.withTreeDetails)
@@ -442,17 +469,12 @@ const LightNodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: 
   const [isExpanded, setIsExpanded] = useState(true)
 
   return (
-    <Flex direction="column" mt={node.parent ? undefined : '1'} data-light-node-id={node.id}>
+    <div className={flex({ direction: 'column', mt: node.parent ? undefined : '1' })} data-light-node-id={node.id}>
       <span
-        className={css({
-          display: 'inline-flex',
-          alignSelf: 'baseline',
-          alignItems: 'center',
-          cursor: 'pointer',
-          fontWeight: isSelected ? 'bold' : undefined,
-          color: isSelected ? 'blue.400' : undefined,
-          ml: node.children.length && node.depth ? '-4' : undefined,
-        })}
+        className={nodeRowName}
+        data-light-node-id={node.id}
+        data-selected={isSelected ? 1 : null}
+        data-with-children={node.children.length && node.depth}
         onClick={(e) => {
           console.log(node)
           e.stopPropagation()
@@ -463,31 +485,25 @@ const LightNodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: 
         }}
       >
         <span
-          data-light-node-id={node.id}
+          data-no-children={!node.children.length && node.depth ? 1 : null}
           onClickCapture={(e) => {
             e.stopPropagation()
             setIsExpanded(!isExpanded)
           }}
-          className={css({
-            display: node.children.length ? undefined : 'none',
-            fontSize: 'xs',
-            mt: '1',
-            mr: '1',
-            cursor: 'pointer',
-          })}
+          className={nodeRowArrow}
         >
           {isExpanded ? '▼' : '▶'}{' '}
         </span>
         {withDetails ? printNodeWithDetails(node) + ' ' + (printNodeLoc(node) ?? '') : node.type}
       </span>
       {isExpanded && node.children ? (
-        <Bleed block="0.25" pl="8">
+        <div className={bleeding}>
           {node.children.map((child, i) => (
             <LightNodeRow key={i} node={child} setSelected={setSelected} />
           ))}
-        </Bleed>
+        </div>
       ) : null}
-    </Flex>
+    </div>
   )
 }
 
@@ -511,17 +527,12 @@ const PostCSSNodeRow = ({
   const children = 'nodes' in node ? node.nodes : undefined
 
   return (
-    <Flex direction="column" mt={node.parent ? undefined : '1'} data-postcss-node-id={id}>
+    <div className={flex({ direction: 'column', mt: node.parent ? undefined : '1' })} data-postcss-node-id={id}>
       <span
-        className={css({
-          display: 'inline-flex',
-          alignSelf: 'baseline',
-          alignItems: 'center',
-          cursor: 'pointer',
-          fontWeight: isSelected ? 'bold' : undefined,
-          color: isSelected ? 'blue.400' : undefined,
-          ml: children?.length && depth ? '-4' : undefined,
-        })}
+        className={nodeRowName}
+        data-postcss-node-id={id}
+        data-selected={isSelected ? 1 : null}
+        data-with-children={children?.length && depth}
         onClick={(e) => {
           console.log(node)
           e.stopPropagation()
@@ -532,18 +543,12 @@ const PostCSSNodeRow = ({
         }}
       >
         <span
-          data-postcss-node-id={id}
+          data-no-children={!children?.length && depth ? 1 : null}
           onClickCapture={(e) => {
             e.stopPropagation()
             setIsExpanded(!isExpanded)
           }}
-          className={css({
-            display: children?.length ? undefined : 'none',
-            fontSize: 'xs',
-            mt: '1',
-            mr: '1',
-            cursor: 'pointer',
-          })}
+          className={nodeRowArrow}
         >
           {isExpanded ? '▼' : '▶'}{' '}
         </span>
@@ -552,12 +557,12 @@ const PostCSSNodeRow = ({
           : node.constructor.name}
       </span>
       {isExpanded && children ? (
-        <Bleed block="0.25" pl="8">
+        <div className={bleeding}>
           {children.map((child, i) => (
             <PostCSSNodeRow key={i} depth={depth + 1} node={child} setSelected={setSelected} />
           ))}
-        </Bleed>
+        </div>
       ) : null}
-    </Flex>
+    </div>
   )
 }
