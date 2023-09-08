@@ -459,6 +459,7 @@ const nodeRowArrow = css({
 })
 
 const bleeding = bleed({ block: '0.25', pl: '8' })
+const nodeRowRoot = flex({ direction: 'column', '&[data-with-parent]': { mt: 1 } })
 
 const LightNodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: (node: LightAstNode) => void }) => {
   const actor = useLightningContext()
@@ -469,7 +470,7 @@ const LightNodeRow = ({ node, setSelected }: { node: LightAstNode; setSelected: 
   const [isExpanded, setIsExpanded] = useState(true)
 
   return (
-    <div className={flex({ direction: 'column', mt: node.parent ? undefined : '1' })} data-light-node-id={node.id}>
+    <div className={nodeRowRoot} data-light-node-id={node.id} data-with-parent={node.parent ? 1 : null}>
       <span
         className={nodeRowName}
         data-light-node-id={node.id}
@@ -527,7 +528,7 @@ const PostCSSNodeRow = ({
   const children = 'nodes' in node ? node.nodes : undefined
 
   return (
-    <div className={flex({ direction: 'column', mt: node.parent ? undefined : '1' })} data-postcss-node-id={id}>
+    <div className={nodeRowRoot} data-postcss-node-id={id} data-with-parent={node.parent ? 1 : null}>
       <span
         className={nodeRowName}
         data-postcss-node-id={id}
